@@ -9,4 +9,5 @@ Do not write Freeform x/y/z/scale attributes, reorder thumbnails, replace Cargo
 media items, intercept navigation, or change Cargo positioning. Custom media
 must use an inspected supported slot or a non-interactive visual layer.
 
-Project-specific data belongs in ../projects.js. No interactions enabled yet.
+Project-specific data belongs in ../projects.js. project-hover.js is enabled for
+Nothing only. Its visual layer lives inside Cargo's existing shadow link.

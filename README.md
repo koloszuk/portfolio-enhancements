@@ -8,7 +8,7 @@ It does not replace Cargo or control its layout.
 
 - Repository: https://github.com/koloszuk/portfolio-enhancements (main).
 - Deployment: https://koloszuk.github.io/portfolio-enhancements/ — GitHub Actions,
-  HTTPS enabled, verified 2026-10-19. No visual interactions enabled.
+  HTTPS enabled, verified 2026-10-19. Nothing hover is enabled.
 - Release `1f0c2cc8614e` reached `state: ready` in Chrome. Loader, CSS,
   JavaScript modules, and the Nothing GIF returned HTTP 200 with correct content
   types and CORS headers; downloaded contents matched the local build.
@@ -16,13 +16,15 @@ It does not replace Cargo or control its layout.
   versioned stylesheet, and module are present; the console confirms
   `[Portfolio] Infrastructure ready 1f0c2cc8614e`.
 - The editor preview contains the loader tag but no external stylesheet or app
-  module, confirming the editor guard. Nothing remains disabled and uses Cargo's
-  static thumbnail with unchanged Freeform x/y/scale.
+  module, confirming the editor guard.
 - The tag was initially pasted in Cargo's CSS tab. Moved that exact tag to the
   empty site-wide HTML tab, published, and read back CSS to verify every other
   character was preserved. Existing Cargo hover CSS was not changed.
-- Enable Nothing only in a separate interaction implementation after these
-  integration checks; no animation behavior is enabled in this release.
+- Nothing now uses the opt-in hover module. All 12 thumbnail attributes,
+  dimensions, and positions match their pre-deployment baselines. Live mouse hover,
+  keyboard focus, 200 ms transitions, GIF loading, grayscale, 50% gray tint,
+  centered title, and restoration of the static thumbnail were verified.
+  The adjacent project's existing hover decoration is unchanged.
 
 ## Files
 
@@ -98,7 +100,7 @@ hot-reload. Cargo internal navigation stays under Cargo's control.
 
 The loader exits on `/edit` URLs, editable documents, and inaccessible embedding
 contexts. If a download fails, Cargo's existing thumbnail/content stays intact.
-No interaction styles are present in the infrastructure release.
+Only mapped projects receive interaction styles; Cargo owns all layout behavior.
 
 ## Verify end to end before enabling interactions
 
@@ -142,14 +144,25 @@ References: [Thumbnail Index](https://docs.cargo.site/thumbnail-index),
 [site-wide custom HTML](https://docs.cargo.site/css-and-html),
 [GitHub Pages workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
 
-## Next interaction: Nothing (pending verification)
+## Enabled interaction: Nothing
 
 - Source: `assets/hover/Nothing_ThumbHover_v01.gif` (800 × 450, about 16 MB).
 - Default: Cargo's original static thumbnail.
 - Hover: grayscale animation; `#E6E6E6` overlay at 50%; centered black project
   title; approximately 200 ms transitions.
-- Use a non-interactive visual layer with native link behavior, touch fallback,
-  keyboard focus, reduced-motion support, lazy animation loading, and cleanup.
+- A non-interactive visual layer is appended inside Cargo's existing shadow link.
+  The original image, link sizing, Freeform attributes, and positioning remain
+  intact. The original image fades out only once the GIF has loaded successfully.
+- The feature's stylesheet is loaded inside the shadow root. `css/main.css` only
+  suppresses the old host overlay/caption on initialized projects to avoid double
+  tint and duplicate titles. Existing Cargo CSS and other projects are untouched.
+- Keyboard focus also shows the effect. Touch and reduced-motion users keep the
+  static image. The loader and module both guard against editor execution.
+- GIF loading begins on pointer entry or keyboard focus. After hover/focus exit,
+  the image source is removed following the fade to stop hidden GIF decoding.
+  The first hover can therefore be delayed by downloading the 16 MB GIF.
+- Mutation observers support Cargo replacing thumbnails during navigation;
+  cleanup removes only the feature's nodes, listeners, label, and data attributes.
 - This GIF is fairly large. Avoid downloading all future GIFs on initial load.
 
 For future projects: drop the public animation in `assets/hover/` and provide the

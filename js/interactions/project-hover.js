@@ -24,6 +24,8 @@ export function mountProjectHovers(projects) {
     const original = link?.querySelector('slot[name="custom-media"] > img');
     // Never replace an existing custom-media slot or guess at Cargo markup.
     if (!link || !original || host.querySelector('[slot="custom-media"]')) return;
+    const originalLabel = link.getAttribute('aria-label');
+    if (!originalLabel) link.setAttribute('aria-label', project.title);
     const style = document.createElement('link');
     style.rel = 'stylesheet';
     style.href = styleURL.href;
@@ -104,6 +106,10 @@ export function mountProjectHovers(projects) {
         animation.removeAttribute('src');
         host.removeAttribute('data-dan-hover-active');
         host.removeAttribute('data-dan-hover');
+        if (!originalLabel && link.getAttribute('aria-label') === project.title) {
+          if (originalLabel === null) link.removeAttribute('aria-label');
+          else link.setAttribute('aria-label', originalLabel);
+        }
         layer.remove();
         style.remove();
       },
