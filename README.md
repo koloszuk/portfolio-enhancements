@@ -6,8 +6,13 @@ It does not replace Cargo or control its layout.
 
 ## Current status
 
-- Local infrastructure prepared; no visual interactions enabled.
-- GitHub repository creation, Pages deployment, and live Cargo loading are pending.
+- Repository: https://github.com/koloszuk/portfolio-enhancements (main).
+- Deployment: https://koloszuk.github.io/portfolio-enhancements/ — GitHub Actions,
+  HTTPS enabled, verified 2026-10-19. No visual interactions enabled.
+- Release `1f0c2cc8614e` reached `state: ready` in Chrome. Loader, CSS,
+  JavaScript modules, and the Nothing GIF returned HTTP 200 with correct content
+  types and CORS headers; downloaded contents matched the local build.
+- The one-time Cargo HTML integration and live Cargo loading test remain pending.
 - Implement Nothing only after the verification steps below pass.
 
 ## Files
@@ -30,7 +35,18 @@ on disk but are ignored by Git. Only `assets/hover/` is published. Everything
 tracked in this repository will be visible if the GitHub repository is public.
 Keep secrets, client production files, and unpublished artwork out of it.
 
-## Connect GitHub and enable deployment
+## GitHub deployment setup (completed)
+
+The remote and GitHub Pages are configured. The following steps document the
+setup; do not recreate the repository or add the remote again. Future pushes to
+`main` automatically deploy. On this Mac, use the working Git executable below:
+
+```sh
+/Library/Developer/CommandLineTools/usr/bin/git push
+```
+
+Git authentication uses the macOS Keychain. The temporary GitHub CLI used for
+device login is not a project dependency and is not required by the workflow.
 
 1. Sign in to GitHub in Chrome. Authentication and MFA stay with you; do not
    paste passwords or tokens into chat.
