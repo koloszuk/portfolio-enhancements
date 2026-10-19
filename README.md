@@ -39,7 +39,7 @@ Keep secrets, client production files, and unpublished artwork out of it.
 3. Connect the local repository using its exact URL:
 
    ```sh
-   git remote add origin https://github.com/YOUR_GITHUB_USERNAME/portfolio-enhancements.git
+   git remote add origin https://github.com/koloszuk/portfolio-enhancements.git
    git push -u origin main
    ```
 
@@ -51,7 +51,7 @@ Keep secrets, client production files, and unpublished artwork out of it.
 4. Open repository Settings → Pages → Build and deployment → Source → GitHub
    Actions. If the first workflow ran before Pages was enabled, rerun it in Actions.
 5. Wait for **Deploy Cargo enhancements** to succeed. Open
-   `https://YOUR_GITHUB_USERNAME.github.io/portfolio-enhancements/` and verify
+   `https://koloszuk.github.io/portfolio-enhancements/` and verify
    `state: ready` with a release ID. This tests both the external CSS and module.
 
 GitHub's deployment uses the built-in Actions token. No deployment token or
@@ -60,7 +60,7 @@ and OIDC permissions.
 
 ## One-time Cargo integration
 
-After Pages is verified, replace the username in `cargo/integration.html`.
+After Pages is verified, use the prepared `cargo/integration.html` snippet.
 In Cargo, open Site Settings → CSS/HTML → HTML. Read and preserve the existing
 HTML, then append the single script tag. Click Update and publish if Cargo asks.
 Do not replace the CSS editor contents or paste this into page-specific code.
