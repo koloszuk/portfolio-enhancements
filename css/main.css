@@ -1,3 +1,10 @@
-/* Infrastructure release: intentionally no visual rules.
-   Future interactions belong in css/interactions/ and must be opt-in.
-   Never override gallery-freeform/media-item positioning or Cargo attributes. */
+/* Only initialized projects opt out of Cargo's pre-existing hover decoration.
+   The replacement decoration lives inside their shadow link. No positioning
+   properties on media-item, gallery, link, or image sizing are changed. */
+gallery-freeform media-item[data-dan-hover]::after {
+  content: none !important;
+}
+
+gallery-freeform media-item[data-dan-hover] > .caption {
+  visibility: hidden !important;
+}

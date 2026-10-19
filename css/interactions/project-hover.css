@@ -1,0 +1,63 @@
+/* Loaded into the enhanced media item's shadow root, not the document. */
+.dan-hover-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  border-radius: inherit;
+}
+
+.dan-hover-animation {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: var(--object-fit, cover);
+  object-position: var(--frame-position, center center);
+  filter: grayscale(100%);
+}
+
+.dan-hover-tint {
+  position: absolute;
+  inset: 0;
+  background: rgb(230 230 230 / 50%);
+}
+
+.dan-hover-title {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  margin: 0;
+  text-align: center;
+  font: inherit;
+  font-size: 2rem;
+  line-height: 1.1;
+  color: #000;
+}
+
+:host([data-dan-hover]) slot[name="custom-media"] > img {
+  opacity: 1;
+  transition: opacity 200ms ease;
+}
+
+:host([data-dan-hover-active]) .dan-hover-layer {
+  opacity: 1;
+}
+
+:host([data-dan-hover-active]) slot[name="custom-media"] > img {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dan-hover-layer,
+  :host([data-dan-hover]) slot[name="custom-media"] > img {
+    transition: none;
+  }
+}

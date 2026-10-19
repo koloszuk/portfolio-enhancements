@@ -1,12 +1,14 @@
 import { projects } from './projects.js';
+import { mountProjectHovers } from './interactions/project-hover.js';
 
-// First release intentionally has no interactions. Activate modules only after
-// GitHub Pages and Cargo loading have been verified on the published website.
+window.danPortfolio?.hover?.destroy();
+const hover = mountProjectHovers(projects);
 window.danPortfolio = {
   ...window.danPortfolio,
   state: 'ready',
-  phase: 'infrastructure',
+  phase: 'project-hover',
   projectCount: projects.length,
   assetBase: new URL('../assets/', import.meta.url).href,
+  hover,
 };
-console.info('[Portfolio] Infrastructure ready', window.danPortfolio.release);
+console.info('[Portfolio] Project hover ready', window.danPortfolio.release);
