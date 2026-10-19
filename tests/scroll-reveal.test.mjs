@@ -17,7 +17,7 @@ function fixture({ editor = false, reduced = false, supported = true } = {}) {
   media.matches = reduced;
   function host(href) {
     const attrs = new Map([['href', href], ['freeform-x', '37'], ['style', 'transform: native']]);
-    return {
+    const item = {
       attrs, animations: [], isConnected: true,
       getAttribute: key => attrs.get(key) ?? null,
       setAttribute: (key, value) => attrs.set(key, value),
@@ -37,6 +37,13 @@ function fixture({ editor = false, reduced = false, supported = true } = {}) {
         return animation;
       },
     };
+    const figure = { animations: [], animate: item.animate, translate: 'none' };
+    item.figure = figure;
+    item.shadowRoot = { querySelector(selector) {
+      assert.equal(selector, 'figure[part~="figure"]');
+      return item.figure;
+    } };
+    return item;
   }
   const hosts = [host('#nothing'), host('#other')];
   class IO {
@@ -57,7 +64,7 @@ function fixture({ editor = false, reduced = false, supported = true } = {}) {
     console, location: { pathname: editor ? '/edit/home' : '/' },
     window: { top: { location: { pathname: editor ? '/edit/home' : '/' } },
       ...(supported ? { IntersectionObserver: IO } : {}) },
-    document: { documentElement: {}, querySelector: () => null,
+    document: { timeline: { currentTime: 1234 }, documentElement: {}, querySelector: () => null,
       querySelectorAll(selector) {
         assert.equal(selector, 'gallery-freeform[thumbnail-index] media-item[href]');
         return hosts.filter(h => h.isConnected);
@@ -65,6 +72,7 @@ function fixture({ editor = false, reduced = false, supported = true } = {}) {
     IntersectionObserver: IO,
     MutationObserver: class { constructor(callback) { this.callback = callback; mutations.push(this); } observe() {} disconnect() {} },
     matchMedia: () => media,
+    getComputedStyle: element => ({ translate: element.translate }),
     requestAnimationFrame: callback => { queue.push(callback); return queue.length; },
     cancelAnimationFrame() {},
     customElements: { whenDefined: () => new Promise(() => {}) },
@@ -78,7 +86,7 @@ function fixture({ editor = false, reduced = false, supported = true } = {}) {
     mutate: () => { mutations[0].callback(); flush(); } };
 }
 
-test('individual reveals run once, animate opacity only, and leave Cargo styles intact', async () => {
+test('individual reveals synchronize a 1000 ms fade with 10% internal movement and preserve Cargo transforms', async () => {
   const f = fixture(), [a, b] = f.hosts;
   assert.equal(a.getAttribute('data-dan-reveal'), 'waiting');
   assert.equal(a.getAttribute('style'), 'transform: native');
@@ -86,11 +94,20 @@ test('individual reveals run once, animate opacity only, and leave Cargo styles 
   assert.equal(b.animations.length, 0);
   const animation = a.animations[0];
   assert.equal(JSON.stringify(animation.frames), '[{"opacity":0},{"opacity":1}]');
-  assert.equal(animation.options.duration, 700);
+  assert.equal(animation.options.duration, 1000);
+  assert.equal(animation.options.easing, 'cubic-bezier(0.22, 1, 0.36, 1)');
   assert.equal(animation.options.fill, 'none');
+  const movement = a.figure.animations[0];
+  assert.equal(JSON.stringify(movement.frames), '[{"translate":"0 10%"},{"translate":"0 0%"}]');
+  assert.deepEqual(movement.options, animation.options);
+  assert.equal(movement.startTime, animation.startTime);
+  assert.equal(animation.startTime, 1234);
   assert.equal(a.getAttribute('freeform-x'), '37');
   animation.complete();
-  await Promise.resolve();
+  movement.complete();
+  // Drain both the test and VM promise queues (Promise.all spans the realms).
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(a.getAttribute('data-dan-reveal'), 'revealed');
   f.io.enter(a);
   assert.equal(a.animations.length, 1);
   assert.equal(a.getAttribute('data-dan-reveal'), 'revealed');
@@ -134,6 +151,7 @@ test('reduced-motion changes and teardown cancel running reveals without stale a
   f.media.matches = true;
   f.media.dispatchEvent(new Event('change'));
   assert.equal(a.animations[0].cancelled, true);
+  assert.equal(a.figure.animations[0].cancelled, true);
   f.api.destroy();
   await Promise.resolve();
   await Promise.resolve();
@@ -147,6 +165,29 @@ test('animation failure leaves the native image visible', () => {
   assert.equal(a.getAttribute('data-dan-reveal'), 'revealed');
   assert.equal(a.getAttribute('style'), 'transform: native');
   f.api.destroy();
+});
+
+test('existing native figure translate is preserved, with an opacity-only fallback', () => {
+  const f = fixture(), [a] = f.hosts;
+  a.figure.translate = '0px 5px';
+  f.io.enter(a);
+  assert.equal(a.animations.length, 1);
+  assert.equal(a.figure.animations.length, 0);
+  assert.equal(a.figure.translate, '0px 5px');
+  f.api.destroy();
+});
+
+test('missing or unsupported internal wrappers keep the fade and never move media-item', () => {
+  for (const mode of ['missing', 'unsupported']) {
+    const f = fixture(), [a] = f.hosts;
+    if (mode === 'missing') a.figure = null;
+    else a.figure.fail = true;
+    f.io.enter(a);
+    assert.equal(a.animations.length, 1);
+    assert.equal(JSON.stringify(a.animations[0].frames), '[{"opacity":0},{"opacity":1}]');
+    assert.equal(a.getAttribute('style'), 'transform: native');
+    f.api.destroy();
+  }
 });
 
 test('pinned navigation thumbnails are excluded even after Cargo changes their class', () => {

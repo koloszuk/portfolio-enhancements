@@ -192,15 +192,25 @@ script from Cargo's site-wide HTML. Native content/layout remains in Cargo.
 `js/main.js`. It automatically discovers linked media items inside
 `gallery-freeform[thumbnail-index]`, including future Cargo projects.
 
-- Opacity 0 → 1, 700 ms, `cubic-bezier(0.16, 1, 0.3, 1)` ease-out.
+- Opacity 0 → 1 and upward movement, both 1000 ms with
+  `cubic-bezier(0.22, 1, 0.36, 1)` ease-out and a shared animation start time.
+- The fade covers the whole media item, including its native hover decoration.
+  Only the internal `figure[part~="figure"]` moves: individual CSS `translate`
+  goes from `0 10%` to `0 0%`. Its height matches each thumbnail, so displacement
+  scales independently with each project and the responsive layout.
 - Each item triggers on its first nonzero viewport intersection. No stagger,
-  delay, translation, wrapper, or Cargo transform/position override.
+  delay, extra wrapper, or Cargo transform/position override. Both finite
+  animations use `fill: none` and are removed on completion/cancellation, leaving
+  exactly the original Freeform coordinates and no inline styles.
+- If the internal figure is unavailable, the browser lacks movement support, or
+  Cargo is already using that figure's individual `translate` property, retain
+  the fade without overriding Cargo's styling.
 - Once per page visit, keyed by project URL within the Cargo page node. Rebuilt
   thumbnails retain their reveal history; a new page visit gets a new history.
 - Items already above the viewport after a scroll restore or fast jump are
   treated as seen. Scrolling upward does not replay reveals.
 - Normal visibility is never hidden by CSS or an inline style. Only a finite,
-  non-filling Web Animation controls opacity for 700 ms. If JS/IO is unavailable,
+  non-filling Web Animation controls opacity for 1000 ms. If JS/IO is unavailable,
   callbacks are delayed, or animations fail, thumbnails stay visible by default.
 - Reduced-motion preferences skip reveals and cancel any running fades.
   Editor guards apply independently in both the loader and reveal module.
@@ -212,10 +222,12 @@ project imagery and lifts its inner figure about 40 px on individual viewport
 entry. Nearby items can reveal together; there is no fixed row sequence.
 Its items reset below the viewport and replay on re-entry. Timing appears
 smooth and on the order of a second; it was visually estimated, not measured
-exactly. Our adaptation uses a restrained opacity-only 700 ms reveal and follows
-the requested once-per-visit behavior to leave Cargo's transforms entirely alone.
+exactly. Our refined adaptation uses a 1000 ms fade with a proportional 10% lift
+on the existing internal figure and follows the requested once-per-visit behavior
+while leaving Cargo's media-item transforms entirely alone.
 
 `tests/scroll-reveal.test.mjs` covers independent/once-only reveals, existing Cargo
 style preservation, restored scroll, new/rebuilt projects, editor/reduced-motion
-fallbacks, missing APIs, failed animation, and cleanup. GitHub Actions runs these
+fallbacks, synchronized internal movement, preservation of native figure styling,
+missing APIs, failed animation, and cleanup. GitHub Actions runs these
 tests before publishing; there are no npm package dependencies.

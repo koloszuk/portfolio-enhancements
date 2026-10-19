@@ -13,5 +13,6 @@ Project-specific data belongs in ../projects.js. project-hover.js is enabled for
 Nothing only. Its visual layer lives inside Cargo's existing shadow link.
 
 scroll-reveal.js observes all linked thumbnails in Freeform Thumbnail Indexes.
-It uses finite opacity-only Web Animations; no hidden CSS, wrappers, Cargo
-positioning changes, or transform overrides. Tests use Node's built-in runner.
+It synchronizes a finite media-item fade with a 10%-height individual translate
+on the existing internal figure. No hidden CSS, added wrappers, Cargo positioning
+changes, or native transform overrides. Tests use Node's built-in runner.

@@ -1,8 +1,8 @@
 const thumbnails = 'gallery-freeform[thumbnail-index] media-item[href]';
 const navigation = '.page.pinned, nav, header, [role="navigation"]';
 export const revealOptions = Object.freeze({
-  duration: 700,
-  easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+  duration: 1000,
+  easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
 });
 
 function isEditor() {
@@ -28,9 +28,15 @@ export function mountScrollReveals() {
     return { seen: visits.get(page), key: host.getAttribute('href') };
   }
 
-  function finish(host, record) {
-    record.animation?.cancel();
+  function cancel(record) {
+    const animations = [record.animation, record.movement];
     record.animation = null;
+    record.movement = null;
+    for (const animation of animations) animation?.cancel();
+  }
+
+  function finish(host, record) {
+    cancel(record);
     host.setAttribute('data-dan-reveal', 'revealed');
   }
 
@@ -44,15 +50,34 @@ export function mountScrollReveals() {
     }
     seen.add(key);
     try {
-      // No hidden CSS, inline opacity, fill mode, or transform overrides.
-      // If JS/IO fails, or this animation is interrupted, Cargo stays visible.
+      // Fade the whole item (including its native hover decoration), but move
+      // only Cargo's internal visual figure. Percentages use the figure's own
+      // height, which matches the thumbnail; Cargo's host transform is untouched.
       const animation = host.animate([{ opacity: 0 }, { opacity: 1 }], {
         ...revealOptions,
         fill: 'none',
       });
       record.animation = animation;
+      const figure = host.shadowRoot?.querySelector('figure[part~="figure"]');
+      // Individual translate composes with transform. If Cargo starts using
+      // translate itself, preserve it and retain the safe opacity-only fallback.
+      if (figure && getComputedStyle(figure).translate === 'none') {
+        try {
+          record.movement = figure.animate([
+            { translate: '0 10%' },
+            { translate: '0 0%' },
+          ], { ...revealOptions, fill: 'none' });
+        } catch (_) { /* Older browsers retain the fade without movement. */ }
+      }
+      const start = document.timeline?.currentTime;
+      if (typeof start === 'number') {
+        animation.startTime = start;
+        if (record.movement) record.movement.startTime = start;
+      }
       host.setAttribute('data-dan-reveal', 'revealing');
-      animation.finished.then(() => {
+      const completed = [animation.finished];
+      if (record.movement) completed.push(record.movement.finished);
+      Promise.all(completed).then(() => {
         if (record.animation === animation) finish(host, record);
       }, () => {
         if (record.animation === animation) finish(host, record);
@@ -68,16 +93,14 @@ export function mountScrollReveals() {
       if (!host.isConnected || !host.matches(thumbnails) || host.closest(navigation) ||
           record.href !== host.getAttribute('href')) {
         observer?.unobserve(host);
-        const animation = record.animation;
-        record.animation = null;
-        animation?.cancel();
+        cancel(record);
         host.removeAttribute('data-dan-reveal');
         records.delete(host);
       }
     }
     for (const host of document.querySelectorAll(thumbnails)) {
       if (records.has(host) || host.closest(navigation)) continue;
-      const record = { href: host.getAttribute('href'), animation: null };
+      const record = { href: host.getAttribute('href'), animation: null, movement: null };
       records.set(host, record);
       const { seen, key } = identity(host);
       if (motion.matches || seen.has(key) || !observer) {
@@ -145,9 +168,7 @@ export function mountScrollReveals() {
     mutations.disconnect();
     motion.removeEventListener('change', motionChanged);
     for (const [host, record] of records) {
-      const animation = record.animation;
-      record.animation = null;
-      animation?.cancel();
+      cancel(record);
       host.removeAttribute('data-dan-reveal');
     }
     records.clear();
