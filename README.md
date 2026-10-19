@@ -12,8 +12,17 @@ It does not replace Cargo or control its layout.
 - Release `1f0c2cc8614e` reached `state: ready` in Chrome. Loader, CSS,
   JavaScript modules, and the Nothing GIF returned HTTP 200 with correct content
   types and CORS headers; downloaded contents matched the local build.
-- The one-time Cargo HTML integration and live Cargo loading test remain pending.
-- Implement Nothing only after the verification steps below pass.
+- Cargo integration verified 2026-10-19 on the published site: loader,
+  versioned stylesheet, and module are present; the console confirms
+  `[Portfolio] Infrastructure ready 1f0c2cc8614e`.
+- The editor preview contains the loader tag but no external stylesheet or app
+  module, confirming the editor guard. Nothing remains disabled and uses Cargo's
+  static thumbnail with unchanged Freeform x/y/scale.
+- The tag was initially pasted in Cargo's CSS tab. Moved that exact tag to the
+  empty site-wide HTML tab, published, and read back CSS to verify every other
+  character was preserved. Existing Cargo hover CSS was not changed.
+- Enable Nothing only in a separate interaction implementation after these
+  integration checks; no animation behavior is enabled in this release.
 
 ## Files
 
