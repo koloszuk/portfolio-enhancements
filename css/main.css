@@ -1,0 +1,3 @@
+/* Infrastructure release: intentionally no visual rules.
+   Future interactions belong in css/interactions/ and must be opt-in.
+   Never override gallery-freeform/media-item positioning or Cargo attributes. */

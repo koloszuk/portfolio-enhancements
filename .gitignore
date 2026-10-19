@@ -1,0 +1,11 @@
+.DS_Store
+**/.DS_Store
+dist/
+__pycache__/
+*.pyc
+.env
+.env.*
+# Preserve local production sources, but keep this repository lightweight.
+/Layout_references/
+/assets/Projects/
+/assets/thumbnails/
