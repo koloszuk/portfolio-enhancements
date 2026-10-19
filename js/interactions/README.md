@@ -11,3 +11,7 @@ must use an inspected supported slot or a non-interactive visual layer.
 
 Project-specific data belongs in ../projects.js. project-hover.js is enabled for
 Nothing only. Its visual layer lives inside Cargo's existing shadow link.
+
+scroll-reveal.js observes all linked thumbnails in Freeform Thumbnail Indexes.
+It uses finite opacity-only Web Animations; no hidden CSS, wrappers, Cargo
+positioning changes, or transform overrides. Tests use Node's built-in runner.

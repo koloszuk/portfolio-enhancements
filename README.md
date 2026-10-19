@@ -8,7 +8,7 @@ It does not replace Cargo or control its layout.
 
 - Repository: https://github.com/koloszuk/portfolio-enhancements (main).
 - Deployment: https://koloszuk.github.io/portfolio-enhancements/ — GitHub Actions,
-  HTTPS enabled, verified 2026-10-19. Nothing hover is enabled.
+  HTTPS enabled, verified 2026-10-19. Nothing hover and project reveals are enabled.
 - Release `1f0c2cc8614e` reached `state: ready` in Chrome. Loader, CSS,
   JavaScript modules, and the Nothing GIF returned HTTP 200 with correct content
   types and CORS headers; downloaded contents matched the local build.
@@ -107,7 +107,7 @@ Only mapped projects receive interaction styles; Cargo owns all layout behavior.
 1. Verify the Pages status page says `ready` and note the release ID.
 2. Open the published Cargo site outside its editor and reload.
 3. In the browser console, inspect `window.danPortfolio`. Expect `state: "ready"`,
-   `phase: "infrastructure"`, and the same release ID as Pages. Network requests
+   `phase: "project-interactions"`, and the same release ID as Pages. Network requests
    should include `loader.js`, `release.json`, versioned `css/main.css`,
    `js/main.js`, and `js/projects.js`, all successful.
 4. Make a small diagnostic wording change in `js/main.js`, commit, and push.
@@ -173,6 +173,7 @@ is needed again.
 
 ```sh
 python3 scripts/build.py
+node --test tests/scroll-reveal.test.mjs
 python3 -m http.server 8080 --directory dist
 ```
 
@@ -184,3 +185,37 @@ For routine updates, review `git diff`, commit, and push to main. Watch Actions
 before reloading Cargo. Roll back by reverting the bad commit and pushing the
 revert. To disconnect all custom code immediately, remove only the integration
 script from Cargo's site-wide HTML. Native content/layout remains in Cargo.
+
+## Project scroll reveals
+
+`js/interactions/scroll-reveal.js` is mounted independently from hover by
+`js/main.js`. It automatically discovers linked media items inside
+`gallery-freeform[thumbnail-index]`, including future Cargo projects.
+
+- Opacity 0 → 1, 700 ms, `cubic-bezier(0.16, 1, 0.3, 1)` ease-out.
+- Each item triggers on its first nonzero viewport intersection. No stagger,
+  delay, translation, wrapper, or Cargo transform/position override.
+- Once per page visit, keyed by project URL within the Cargo page node. Rebuilt
+  thumbnails retain their reveal history; a new page visit gets a new history.
+- Items already above the viewport after a scroll restore or fast jump are
+  treated as seen. Scrolling upward does not replay reveals.
+- Normal visibility is never hidden by CSS or an inline style. Only a finite,
+  non-filling Web Animation controls opacity for 700 ms. If JS/IO is unavailable,
+  callbacks are delayed, or animations fail, thumbnails stay visible by default.
+- Reduced-motion preferences skip reveals and cancel any running fades.
+  Editor guards apply independently in both the loader and reveal module.
+- The reel, fixed navigation, image filters, hover tint, titles, and dimensions
+  are outside the reveal module's scope. Nothing's hover remains independent.
+
+Reference observation: [Itsacat Studio](https://itsacatstudio.com/) fades its
+project imagery and lifts its inner figure about 40 px on individual viewport
+entry. Nearby items can reveal together; there is no fixed row sequence.
+Its items reset below the viewport and replay on re-entry. Timing appears
+smooth and on the order of a second; it was visually estimated, not measured
+exactly. Our adaptation uses a restrained opacity-only 700 ms reveal and follows
+the requested once-per-visit behavior to leave Cargo's transforms entirely alone.
+
+`tests/scroll-reveal.test.mjs` covers independent/once-only reveals, existing Cargo
+style preservation, restored scroll, new/rebuilt projects, editor/reduced-motion
+fallbacks, missing APIs, failed animation, and cleanup. GitHub Actions runs these
+tests before publishing; there are no npm package dependencies.
