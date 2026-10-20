@@ -279,17 +279,22 @@ The grid's internal layer is now -2; its appearance and configuration are unchan
 Add the minimal attributes from `cargo/line-anchors.md`. Intro x follows the
 marked description's right edge plus half the scribble width; its start is the
 scribble's bottom (or the description bottom when no scribble is present).
-Its endpoint is 70% down `.page-content`. The footer line begins 50% down that
+Its endpoint is the rendered midpoint of the project linked as
+`#project-08-logitech`, selected by link rather than gallery index. The stable
+Freeform host identifies it; the inner figure supplies Cargo's animated visual
+position. Missing/nonintersecting targets hide only line 1 and leave X unchanged. The footer line begins 50% down that
 same content box and ends at the Back to Top link's vertical center, half a
-link-height to its left. All coordinates subtract the homepage origin: scrolling
-needs no measurements or listener. A missing intro marker draws no guessed line.
+link-height to its left. All coordinates subtract the homepage origin. A passive scroll callback samples only Logitech's visual rect once per
+frame to keep the endpoint hidden during native Fly in-out; it never remeasures
+all text/columns on scrolling or writes any native transform. No idle loop. A missing intro marker draws no guessed line.
 Text changes never select anchors by visible string or column index.
 
 `js/config.js` exposes `ENABLE_DECORATIVE_LINES`, `ENABLE_LINES_IN_EDITOR`,
-`INTRO_LINE_END_FRACTION`, `BACK_TOP_LINE_START_FRACTION`, color and stroke width.
+`INTRO_LINE_TARGET_HREF`, `INTRO_LINE_TARGET_FRACTION`, `BACK_TOP_LINE_START_FRACTION`, color and stroke width.
 Lines appear only on desktop (901px and wider), with 1.5px #BABABA strokes.
 ResizeObserver watches page/content/anchor/column sizes; filtered mutations,
-font readiness, image loads and browser resizing request one measurement frame.
+font readiness, image loads, Freeform coordinate edits and browser resizing
+request one full measurement frame.
 SVG writes and native image-animation style churn do not schedule a loop.
 
 Geometry and loader tests run in CI. For interactive local verification, serve
