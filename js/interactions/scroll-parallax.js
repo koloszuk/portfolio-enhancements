@@ -1,24 +1,49 @@
 import {
-  ENABLE_PARALLAX, PARALLAX_INTENSITY, MIN_PARALLAX_OFFSET, MAX_PARALLAX_OFFSET,
-  PARALLAX_SHORT_HEIGHT, PARALLAX_TALL_HEIGHT,
+  ENABLE_PARALLAX, PARALLAX_INTENSITY, PARALLAX_MIN_SPEED,
+  PARALLAX_MAX_SPEED, PARALLAX_SLOW_ZONE_WIDTH,
 } from '../config.js';
 
 const thumbnails = 'gallery-freeform[thumbnail-index] media-item[href]';
 const navigation = '.page.pinned, nav, header, [role="navigation"]';
 export const parallaxOptions = Object.freeze({
   enabled: ENABLE_PARALLAX, intensity: PARALLAX_INTENSITY,
-  minimum: MIN_PARALLAX_OFFSET, maximum: MAX_PARALLAX_OFFSET,
-  shortHeight: PARALLAX_SHORT_HEIGHT, tallHeight: PARALLAX_TALL_HEIGHT,
+  minimumSpeed: PARALLAX_MIN_SPEED, maximumSpeed: PARALLAX_MAX_SPEED,
+  slowZoneWidth: PARALLAX_SLOW_ZONE_WIDTH,
 });
-const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
-export function maxOffsetForHeight(height) {
-  const { minimum, maximum, shortHeight, tallHeight, intensity } = parallaxOptions;
-  const fraction = clamp((height - shortHeight) / (tallHeight - shortHeight), 0, 1);
-  return (minimum + (maximum - minimum) * fraction) * intensity;
+export function motionProfile(viewportHeight) {
+  const { intensity, minimumSpeed, maximumSpeed, slowZoneWidth } = parallaxOptions;
+  // Positive derivatives prevent stopping/reversing even during calibration.
+  const minimum = Math.max(0.05, 1 + intensity * (minimumSpeed - 1));
+  const maximum = Math.max(minimum, 1 + intensity * (maximumSpeed - 1));
+  const radius = Math.max(1, viewportHeight * Math.max(0.05, slowZoneWidth));
+  const mean = (minimum + maximum) / 2;
+  const tail = radius / 4;
+  // A conservative bound for both the interior sine and its smooth outer tail.
+  const range = Math.max(1, radius * (Math.abs(mean - 1) +
+    (maximum - minimum) / (2 * Math.PI)) + Math.abs(maximum - 1) * tail / 2);
+  return { minimum, maximum, radius, mean, tail, range };
 }
-export function offsetForBox(box, viewportHeight, maximumOffset) {
-  const progress = clamp((viewportHeight - box.top) / (viewportHeight + box.height), 0, 1);
-  return (1 - 2 * progress) * maximumOffset;
+export function offsetAtPosition(position, viewportHeight) {
+  const { minimum, maximum, radius, mean, tail } = motionProfile(viewportHeight);
+  const distance = Math.abs(position);
+  let offset;
+  if (distance <= radius) {
+    // Integral of mean - (maximum-minimum)/2 * cos(PI*x/radius).
+    // Its derivative is apparent scroll speed, not a time-based easing curve.
+    offset = (mean - 1) * distance - (maximum - minimum) * radius /
+      (2 * Math.PI) * Math.sin(Math.PI * distance / radius);
+  } else {
+    // Smoothly return to native speed outside the forcefield, then hold a
+    // bounded offset. Continuous position/speed/acceleration at both joins.
+    const u = Math.min(distance - radius, tail);
+    offset = (mean - 1) * radius + (maximum - 1) *
+      (u / 2 + tail / (2 * Math.PI) * Math.sin(Math.PI * u / tail));
+  }
+  return Math.sign(position) * offset;
+}
+export function offsetForBox(box, viewportHeight) {
+  const nativeCenter = box.top + box.height / 2;
+  return offsetAtPosition(nativeCenter - viewportHeight / 2, viewportHeight);
 }
 function isEditor() {
   try {
@@ -46,20 +71,20 @@ export function mountScrollParallax() {
     // document coordinates. Twelve stationary host boxes need no cache.
     const boxes = hosts.map(host => {
       const r = host.getBoundingClientRect();
-      return { top: r.top, bottom: r.bottom, left: r.left, right: r.right,
-        height: r.height, gallery: host.closest('gallery-freeform') };
+      return { top: r.top, height: r.height };
     });
-    // Calibration: no neighbor caps. Keep size differences visible, allowing
-    // temporary visual overlaps without changing Cargo layout coordinates.
-    const maxima = boxes.map(box => maxOffsetForHeight(box.height));
-    const range = parallaxOptions.maximum * parallaxOptions.intensity;
+    // Position, not thumbnail height, now determines speed. No collision caps
+    // flatten the slow zone; temporary visual overlap remains experimental.
+    const viewportHeight = document.documentElement.clientHeight;
+    const { range } = motionProfile(viewportHeight);
     hosts.forEach((host, index) => {
       if (!records.has(host)) { records.set(host, { animation: null }); sizes?.observe(host); }
       const record = records.get(host);
       const figure = host.shadowRoot?.querySelector('figure[part~="figure"]');
       if (record.figure !== figure) { clear(record); record.figure = figure; record.unsupported = false; }
-      if (motion.matches || !parallaxOptions.enabled || !figure || !maxima[index]) { clear(record); return; }
+      if (motion.matches || !parallaxOptions.enabled || !figure || parallaxOptions.intensity === 0) { clear(record); return; }
       if (record.unsupported) return;
+      if (record.range !== range) { clear(record); record.range = range; }
       try {
         if (!record.animation) {
           // A paused additive effect is a scroll-position setter, never a
@@ -74,7 +99,7 @@ export function mountScrollParallax() {
           }
           record.animation = animation;
         }
-        const offset = offsetForBox(boxes[index], document.documentElement.clientHeight, maxima[index]);
+        const offset = offsetForBox(boxes[index], viewportHeight);
         record.animation.currentTime = (offset + range) / (2 * range);
       } catch (_) { clear(record); record.unsupported = true; }
     });

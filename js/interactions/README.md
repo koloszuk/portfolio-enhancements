@@ -21,9 +21,11 @@ its native box and moving visual figure have fully exited the viewport.
 Scroll direction is sampled at entry: down starts below, up starts above.
 Direction changes never modify an already-running animation.
 
-scroll-parallax.js applies deterministic viewport-position parallax to the same
-internal figure via a paused additive transform. No velocity or physics code.
-Configuration and formula are documented in the root README. Calibration intentionally removes spacing caps so different height responses
-remain visible; temporary visual overlaps are allowed. Scroll schedules
-one update, with no continuous loop. Resize/mutation observers support newly
-added projects and responsive layout; reduced-motion and editor guards apply.
+scroll-parallax.js applies a symmetric nonlinear viewport forcefield via a
+paused additive transform on each internal figure. Speed derives from the
+native host center: 0.4x in the center, 1x at quarter positions, 1.6x at edges.
+Smooth outer tails return to native speed without snaps. Configuration and the
+motion integral are documented in the root README. No height-based linear
+mapping, physics, collision caps, or scroll interception. Temporary overlap is
+allowed. One update per scroll/layout event; no continuous loop. Resize/mutation
+observers support new projects and responsive layout; editor/motion guards apply.

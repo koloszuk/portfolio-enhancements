@@ -245,27 +245,31 @@ fallbacks, synchronized internal movement, preservation of native figure styling
 missing APIs, failed animation, and cleanup. GitHub Actions runs these
 tests before publishing; there are no npm package dependencies.
 
-### Experimental parallax calibration and reference background
+### Nonlinear viewport forcefield and reference background
 
-All calibration controls are in `js/config.js`: `ENABLE_PARALLAX`,
-`PARALLAX_INTENSITY`, `MIN_PARALLAX_OFFSET` (25), `MAX_PARALLAX_OFFSET` (120),
-`PARALLAX_SHORT_HEIGHT` (100), `PARALLAX_TALL_HEIGHT` (550),
-`ENABLE_BACKGROUND_GRID`, `GRID_SPACING` (36), and `GRID_DOT_SIZE` (2).
-Offsets now mean **peak displacement in either direction**, not total travel.
+All controls are in `js/config.js`: `ENABLE_PARALLAX`, `PARALLAX_MIN_SPEED` (0.4),
+`PARALLAX_MAX_SPEED` (1.6), `PARALLAX_SLOW_ZONE_WIDTH` (0.5), and
+`PARALLAX_INTENSITY` (1). Strength 0 or disabling restores native positions.
+Speed means rendered thumbnail center travel / native scroll distance. The slow
+zone width is a fraction of viewport height; at default speeds its central half
+moves below 1x. No height-based linear parallax remains.
 
-`js/interactions/scroll-parallax.js` maps native rendered height `h` continuously:
-`f = clamp((h - 100) / 450, 0, 1)`;
-`M = intensity * (25 + 95 * f)`;
-`p = clamp((viewportHeight - nativeHostTop) / (viewportHeight + h), 0, 1)`;
-`offsetY = (1 - 2*p) * M`.
-Thus 100px, 300px and 550px thumbnails receive peak ranges of ±25px, ±67.2px,
-and ±120px. The previous half-travel normalization and neighbor gap caps have
-been removed for this experiment. Temporary visual overlap is deliberately
-allowed; Cargo's Freeform coordinates, dimensions, and native transforms are
-unchanged. We measure stationary host boxes, never already-transformed figures.
-Paused additive transforms only affect each internal visual figure. A passive
-scroll listener schedules one frame, with no inertia, easing or idle loop.
-Editor/reduced-motion guards and native navigation remain intact.
+For native thumbnail center relative to viewport center `x`, radius
+`R = viewportHeight * slowZoneWidth`, mean speed `m = (min + max)/2`, the curve is:
+`visualCenter = viewportCenter + m*x - (max-min)*R/(2*PI)*sin(PI*x/R)`
+for `abs(x) <= R`. Its derivative is
+`m - (max-min)/2*cos(PI*x/R)`: 1.6x at edges, 1x at quarter positions, 0.4x at
+center, symmetrically in both scroll directions. Intensity interpolates speeds
+from native 1x; a positive minimum prevents actual reversal/stopping.
+
+Outside the field, a quarter-radius raised-cosine tail smoothly returns speed
+to native 1x, then holds a bounded offset. Position, speed and acceleration are
+continuous at the joins. Additive effects are paused transform setters on the
+internal figure, never on the Cargo host. Resize recomputes the field and effect
+range. Native host centers supply all measurements, avoiding visual feedback.
+No inertia, collision clamps, time easing, scroll interception or idle loop.
+Temporary visual overlap is allowed during calibration; dimensions/coordinates
+remain native. Editor/reduced-motion guards and native navigation remain intact.
 
 `js/backgrounds/dot-grid.js` mounts a fixed, pointer-inert decoration only inside
 the homepage (`L3482832595`). `css/backgrounds/dot-grid.css` paints #BDBDBD dots
@@ -276,8 +280,9 @@ Turning `ENABLE_BACKGROUND_GRID` off removes only the dots, retaining the grey
 background. Replacement/removal of the homepage and teardown remove the layer.
 The background module is independent of parallax for future graphics work.
 
-`tests/scroll-parallax.test.mjs` checks height differences, peak units,
-determinism/reversal, no idle movement, configuration, preferences and cleanup.
+`tests/scroll-parallax.test.mjs` checks rendered derivatives, monotonicity and
+symmetry across viewport sizes, outer joins, bounds, deterministic reversal,
+no idle movement, configuration, resizing, preferences and cleanup.
 
 Scroll reveals are temporarily disabled with `ENABLE_SCROLL_REVEAL = false` in
 `js/main.js` so scroll-linked parallax can be evaluated independently. Set it to
