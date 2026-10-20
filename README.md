@@ -245,23 +245,33 @@ fallbacks, synchronized internal movement, preservation of native figure styling
 missing APIs, failed animation, and cleanup. GitHub Actions runs these
 tests before publishing; there are no npm package dependencies.
 
-### Inertial parallax
+### Scroll-linked parallax
 
-`js/interactions/inertial-parallax.js` adds subtle scroll momentum independently
-of the existing directional reveals. Downward scrolling shifts figures upward;
-upward scrolling shifts them downward. Maximum displacement is 12px, scaled by
-rendered thumbnail height / 550 (clamped 0.15–1). Velocity decays with a 110ms
-exponential time constant; figures follow with an 85ms time constant, then the
-effect is cancelled at rest for exact native positioning. The additive transform
-on the internal figure composes with the reveal's individual translate and never
-writes Cargo's host transforms or dimensions. Intersection/resize/mutation
-observers handle visibility, responsive sizing and new projects. Reduced motion,
-editor mode, hidden tabs and unsupported additive animation safely skip motion.
-No dependencies or idle animation loop. `tests/inertial-parallax.test.mjs` checks
-height scaling, directions, the cap, composition, settling, cleanup and guards.
+`js/interactions/scroll-parallax.js` replaces inertial motion with a deterministic
+scroll-position calculation. For a native host box with viewport top `t`, height
+`h`, and viewport height `v`, `p = clamp((v - t) / (v + h), 0, 1)` and
+`offsetY = (0.5 - p) * amplitude`. The internal visual figure moves from half the
+amplitude below to half above across its viewport traversal. Stopping preserves
+the offset; reversal retraces the same positions. No physics, easing, transition,
+velocity state, or self-scheduling animation loop remains.
+
+Configuration lives in `parallaxOptions`: 6px traversal for heights at/below
+100px, increasing linearly to 25px at/above 550px. For horizontally overlapping
+neighbors in the same gallery, each amplitude is capped at 50% of their native
+vertical gap (or overlap depth). Thus even worst-case combined displacement
+retains at least half of an existing gap, and intentional overlaps remain
+intersecting. Touching pairs stay stationary. Freeform host coordinates and sizes
+remain untouched. Measurements use host boxes, never the transformed figures.
+
+A passive scroll listener schedules one requestAnimationFrame update. Paused,
+linear additive Web Animations act only as transform setters on the internal
+figure. Resize/mutation observers handle responsive sizing and new projects.
+Editor/reduced-motion guards, hover, and native links remain unchanged.
+`tests/scroll-parallax.test.mjs` covers deterministic reversal, no idle motion,
+height scaling, spacing budgets, preferences, teardown, and dynamic projects.
 
 Scroll reveals are temporarily disabled with `ENABLE_SCROLL_REVEAL = false` in
-`js/main.js` so inertial parallax can be evaluated independently. Set it to
+`js/main.js` so scroll-linked parallax can be evaluated independently. Set it to
 `true` to reactivate. Existing reveal instances are destroyed before mounting,
 cancelling their opacity/translate animations and removing reveal markers.
 The reveal implementation is preserved; parallax and hover remain enabled.
