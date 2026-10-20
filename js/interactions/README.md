@@ -21,11 +21,7 @@ its native box and moving visual figure have fully exited the viewport.
 Scroll direction is sampled at entry: down starts below, up starts above.
 Direction changes never modify an already-running animation.
 
-scroll-parallax.js applies a symmetric nonlinear viewport forcefield via a
-paused additive transform on each internal figure. Speed derives from the
-native host center: 0.4x in the center, 1x at quarter positions, 1.6x at edges.
-Smooth outer tails return to native speed without snaps. Configuration and the
-motion integral are documented in the root README. No height-based linear
-mapping, physics, collision caps, or scroll interception. Temporary overlap is
-allowed. One update per scroll/layout event; no continuous loop. Resize/mutation
-observers support new projects and responsive layout; editor/motion guards apply.
+Cargo's native Fly in-out preset owns thumbnail scroll movement. External code
+must not change its settings, transforms or timing. The custom reveal module
+above remains disabled via ENABLE_SCROLL_REVEAL = false in ../main.js; when
+inactive it mounts no observers/listeners and applies no opacity or translate.

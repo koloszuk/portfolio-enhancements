@@ -188,7 +188,7 @@ script from Cargo's site-wide HTML. Native content/layout remains in Cargo.
 
 ## Project scroll reveals
 
-`js/interactions/scroll-reveal.js` is mounted independently from hover by
+`js/interactions/scroll-reveal.js` can be mounted independently from hover by
 `js/main.js`. It automatically discovers linked media items inside
 `gallery-freeform[thumbnail-index]`, including future Cargo projects.
 
@@ -245,31 +245,14 @@ fallbacks, synchronized internal movement, preservation of native figure styling
 missing APIs, failed animation, and cleanup. GitHub Actions runs these
 tests before publishing; there are no npm package dependencies.
 
-### Nonlinear viewport forcefield and reference background
+### Native scroll animation and reference background
 
-All controls are in `js/config.js`: `ENABLE_PARALLAX`, `PARALLAX_MIN_SPEED` (0.4),
-`PARALLAX_MAX_SPEED` (1.6), `PARALLAX_SLOW_ZONE_WIDTH` (0.5), and
-`PARALLAX_INTENSITY` (1). Strength 0 or disabling restores native positions.
-Speed means rendered thumbnail center travel / native scroll distance. The slow
-zone width is a fraction of viewport height; at default speeds its central half
-moves below 1x. No height-based linear parallax remains.
+Cargo owns thumbnail scroll movement through its native Fly in-out preset,
+intensity 2. External code does not set movement transforms, animation timing,
+or Freeform coordinates. Native animation settings remain managed in Cargo.
 
-For native thumbnail center relative to viewport center `x`, radius
-`R = viewportHeight * slowZoneWidth`, mean speed `m = (min + max)/2`, the curve is:
-`visualCenter = viewportCenter + m*x - (max-min)*R/(2*PI)*sin(PI*x/R)`
-for `abs(x) <= R`. Its derivative is
-`m - (max-min)/2*cos(PI*x/R)`: 1.6x at edges, 1x at quarter positions, 0.4x at
-center, symmetrically in both scroll directions. Intensity interpolates speeds
-from native 1x; a positive minimum prevents actual reversal/stopping.
-
-Outside the field, a quarter-radius raised-cosine tail smoothly returns speed
-to native 1x, then holds a bounded offset. Position, speed and acceleration are
-continuous at the joins. Additive effects are paused transform setters on the
-internal figure, never on the Cargo host. Resize recomputes the field and effect
-range. Native host centers supply all measurements, avoiding visual feedback.
-No inertia, collision clamps, time easing, scroll interception or idle loop.
-Temporary visual overlap is allowed during calibration; dimensions/coordinates
-remain native. Editor/reduced-motion guards and native navigation remain intact.
+Background controls stay in `js/config.js`: `ENABLE_BACKGROUND_GRID`,
+`GRID_SPACING` (36), `GRID_DOT_SIZE` (2), and `HOMEPAGE_ID`.
 
 `js/backgrounds/dot-grid.js` mounts a fixed, pointer-inert decoration only inside
 the homepage (`L3482832595`). `css/backgrounds/dot-grid.css` paints #BDBDBD dots
@@ -278,14 +261,12 @@ existing isolated stacking context; no native pseudo-elements, positioning,
 blend modes, or new stacking contexts are applied to Cargo content/navigation.
 Turning `ENABLE_BACKGROUND_GRID` off removes only the dots, retaining the grey
 background. Replacement/removal of the homepage and teardown remove the layer.
-The background module is independent of parallax for future graphics work.
-
-`tests/scroll-parallax.test.mjs` checks rendered derivatives, monotonicity and
-symmetry across viewport sizes, outer joins, bounds, deterministic reversal,
-no idle movement, configuration, resizing, preferences and cleanup.
+The background module remains independent for future graphics work.
 
 Scroll reveals are temporarily disabled with `ENABLE_SCROLL_REVEAL = false` in
-`js/main.js` so scroll-linked parallax can be evaluated independently. Set it to
+`js/main.js` while Cargo handles thumbnail movement. Set it to
 `true` to reactivate. Existing reveal instances are destroyed before mounting,
 cancelling their opacity/translate animations and removing reveal markers.
-The reveal implementation is preserved; parallax and hover remain enabled.
+The reveal implementation is preserved. It is never mounted while disabled, so
+no reveal listeners, observers, opacity effects or movement animations run.
+Nothing hover, background, loader and GitHub Pages deployment remain enabled.
