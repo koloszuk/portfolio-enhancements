@@ -1,0 +1,20 @@
+/* The page is already a positioned, isolated Cargo container. */
+.page > svg.dan-home-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none !important;
+  user-select: none;
+}
+.dan-home-lines line {
+  stroke: var(--dan-line-color, #3a3a3a);
+  stroke-width: var(--dan-line-width, 1.5);
+  vector-effect: non-scaling-stroke;
+  pointer-events: none !important;
+}
+@media (max-width: 900px) {
+  .page > svg.dan-home-lines { display: none; }
+}

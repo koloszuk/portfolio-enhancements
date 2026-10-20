@@ -7,24 +7,15 @@ It does not replace Cargo or control its layout.
 ## Current status
 
 - Repository: https://github.com/koloszuk/portfolio-enhancements (main).
-- Deployment: https://koloszuk.github.io/portfolio-enhancements/ — GitHub Actions,
-  HTTPS enabled, verified 2026-10-19. Nothing hover and project reveals are enabled.
-- Release `1f0c2cc8614e` reached `state: ready` in Chrome. Loader, CSS,
-  JavaScript modules, and the Nothing GIF returned HTTP 200 with correct content
-  types and CORS headers; downloaded contents matched the local build.
-- Cargo integration verified 2026-10-19 on the published site: loader,
-  versioned stylesheet, and module are present; the console confirms
-  `[Portfolio] Infrastructure ready 1f0c2cc8614e`.
-- The editor preview contains the loader tag but no external stylesheet or app
-  module, confirming the editor guard.
-- The tag was initially pasted in Cargo's CSS tab. Moved that exact tag to the
-  empty site-wide HTML tab, published, and read back CSS to verify every other
-  character was preserved. Existing Cargo hover CSS was not changed.
-- Nothing now uses the opt-in hover module. All 12 thumbnail attributes,
-  dimensions, and positions match their pre-deployment baselines. Live mouse hover,
-  keyboard focus, 200 ms transitions, GIF loading, grayscale, 50% gray tint,
-  centered title, and restoration of the static thumbnail were verified.
-  The adjacent project's existing hover decoration is unchanged.
+- GitHub Actions deploys external code to GitHub Pages; Cargo remains the CMS.
+- Nothing hover and the stationary homepage dot grid remain enabled.
+- Cargo owns native Fly in-out thumbnail movement. Custom reveals remain disabled
+  via `ENABLE_SCROLL_REVEAL = false` in `js/main.js`.
+- Desktop decorative lines require the intro marker described in
+  `cargo/line-anchors.md`; the footer also supports its existing semantic link.
+- Interactive code stays excluded from Cargo's editor. Only the passive line
+  stylesheet/module may run in its same-origin `client-frame` preview, outside
+  editable bodycopy. Unknown embeddings and the editor UI itself remain inert.
 
 ## Files
 
@@ -32,6 +23,9 @@ It does not replace Cargo or control its layout.
 | --- | --- |
 | `js/loader.js` | Stable entry point pasted into Cargo once |
 | `js/main.js` | Explicitly enable interaction modules here |
+| `js/config.js` | Background and decorative-line settings |
+| `js/editor-decorations.js` | Passive editor-preview entry, no interactions |
+| `js/decorations/` | Page-level SVG decoration independent of Cargo layout |
 | `js/projects.js` | Project ID/URL to animation mappings |
 | `js/interactions/` | Independent hover, scroll, transition modules |
 | `css/main.css` | External style entry point |
@@ -98,8 +92,10 @@ Further pushes require no Cargo edits. GitHub/browser caching may delay an
 update briefly; reload after deployment succeeds. Already open pages do not
 hot-reload. Cargo internal navigation stays under Cargo's control.
 
-The loader exits on `/edit` URLs, editable documents, and inaccessible embedding
-contexts. If a download fails, Cargo's existing thumbnail/content stays intact.
+The loader exits in the outer `/edit` UI, unrelated editable documents, and
+inaccessible embedding contexts. Its only editor exception is the verified
+same-origin `client-frame`: this loads `editor-decorations.js` and line CSS,
+never main.js or hover/reveal/background modules. If a download fails, Cargo's existing thumbnail/content stays intact.
 Only mapped projects receive interaction styles; Cargo owns all layout behavior.
 
 ## Verify end to end before enabling interactions
@@ -270,3 +266,32 @@ cancelling their opacity/translate animations and removing reveal markers.
 The reveal implementation is preserved. It is never mounted while disabled, so
 no reveal listeners, observers, opacity effects or movement animations run.
 Nothing hover, background, loader and GitHub Pages deployment remain enabled.
+
+
+### Anchored desktop lines
+
+`js/decorations/anchored-lines.js` appends one passive SVG as a direct homepage
+child, outside `.page-layout` and editable `bodycopy`. It does not wrap or alter
+Cargo Columns, images, anchors, Freeform attributes, transforms or native timing.
+Its negative stacking level is above the grid and behind the existing content.
+The grid's internal layer is now -2; its appearance and configuration are unchanged.
+
+Add the minimal attributes from `cargo/line-anchors.md`. Intro x follows the
+marked description's right edge plus half the scribble width; its start is the
+scribble's bottom (or the description bottom when no scribble is present).
+Its endpoint is 70% down `.page-content`. The footer line begins 50% down that
+same content box and ends at the Back to Top link's vertical center, half a
+link-height to its left. All coordinates subtract the homepage origin: scrolling
+needs no measurements or listener. A missing intro marker draws no guessed line.
+Text changes never select anchors by visible string or column index.
+
+`js/config.js` exposes `ENABLE_DECORATIVE_LINES`, `ENABLE_LINES_IN_EDITOR`,
+`INTRO_LINE_END_FRACTION`, `BACK_TOP_LINE_START_FRACTION`, color and stroke width.
+Lines appear only on desktop (901px and wider), with 1.5px #3A3A3A strokes.
+ResizeObserver watches page/content/anchor/column sizes; filtered mutations,
+font readiness, image loads and browser resizing request one measurement frame.
+SVG writes and native image-animation style churn do not schedule a loop.
+
+Geometry and loader tests run in CI. For interactive local verification, serve
+the repository and open `tests/fixtures/anchored-lines.html`; buttons move each
+anchor independently and add content without editing the real Cargo website.

@@ -2,17 +2,18 @@
 (() => {
   'use strict';
   if (window.__danPortfolioLoader) return;
-  function isEditor() {
+  function context() {
     try {
-      return /(?:^|\/)edit(?:\/|$)/.test(location.pathname) ||
-        /(?:^|\/)edit(?:\/|$)/.test(window.top.location.pathname) ||
-        !!document.querySelector('[contenteditable="true"]');
-    } catch (_) {
-      // Unknown embedding context: keep Cargo editing safe.
-      return true;
-    }
+      const edit = path => /(?:^|\/)edit(?:\/|$)/.test(path);
+      if (edit(location.pathname)) return 'skip'; // Never run in the editor UI.
+      if (edit(window.top.location.pathname)) {
+        return window.frameElement?.id === 'client-frame' ? 'decorations' : 'skip';
+      }
+      return document.querySelector('[contenteditable="true"]') ? 'skip' : 'public';
+    } catch (_) { return 'skip'; } // Unknown/cross-origin embedding stays inert.
   }
-  if (isEditor()) return;
+  const mode = context();
+  if (mode === 'skip') return;
   const source = document.currentScript;
   if (!source || !source.src) return;
   window.__danPortfolioLoader = true;
@@ -27,21 +28,21 @@
     })
     .then(async ({ release }) => {
       if (!/^[a-f0-9]{12}$/.test(release)) throw new Error('Invalid release');
-      if (isEditor()) return;
+      if (context() !== mode) return;
       status.release = release;
       const releaseBase = new URL(`releases/${release}/`, base);
       const css = document.createElement('link');
       css.rel = 'stylesheet';
-      css.href = new URL('css/main.css', releaseBase).href;
+      css.href = new URL(mode === 'decorations' ? 'css/decorations/anchored-lines.css' : 'css/main.css', releaseBase).href;
       await new Promise((resolve, reject) => {
         css.onload = resolve;
         css.onerror = () => reject(new Error('Stylesheet failed to load'));
         document.head.append(css);
       });
-      if (isEditor()) { css.remove(); return; }
+      if (context() !== mode) { css.remove(); return; }
       const app = document.createElement('script');
       app.type = 'module';
-      app.src = new URL('js/main.js', releaseBase).href;
+      app.src = new URL(mode === 'decorations' ? 'js/editor-decorations.js' : 'js/main.js', releaseBase).href;
       app.onerror = () => { status.state = 'error'; console.warn('[Portfolio] Module failed to load'); };
       document.head.append(app);
     })
