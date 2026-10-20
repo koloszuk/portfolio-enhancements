@@ -69,7 +69,8 @@ export function mountScrollParallax() {
           // A paused additive effect is a scroll-position setter, never a
           // time-driven animation. Native transform and reveal translate survive.
           const animation = figure.animate([
-            { transform: 'translateY(-25px)' }, { transform: 'translateY(25px)' },
+            { transform: `translateY(${-parallaxOptions.maximum}px)` },
+            { transform: `translateY(${parallaxOptions.maximum}px)` },
           ], { duration: 1, fill: 'both', easing: 'linear', composite: 'add' });
           animation.pause();
           if (animation.effect.composite !== 'add') {
@@ -78,7 +79,7 @@ export function mountScrollParallax() {
           record.animation = animation;
         }
         const offset = offsetForBox(boxes[index], document.documentElement.clientHeight, amplitudes[index]);
-        record.animation.currentTime = (offset + 25) / 50;
+        record.animation.currentTime = (offset + parallaxOptions.maximum) / (2 * parallaxOptions.maximum);
       } catch (_) { clear(record); record.unsupported = true; }
     });
     // No next frame: only a scroll/layout/preference event schedules an update.
