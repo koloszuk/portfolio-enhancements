@@ -19,6 +19,8 @@ function fixture({ editor = false, reduced = false, supported = true } = {}) {
     const attrs = new Map([['href', href], ['freeform-x', '37'], ['style', 'transform: native']]);
     const item = {
       attrs, animations: [], isConnected: true,
+      rect: { top: 0, bottom: 100, left: 0, right: 100, width: 100, height: 100 },
+      getBoundingClientRect() { return this.rect; },
       getAttribute: key => attrs.get(key) ?? null,
       setAttribute: (key, value) => attrs.set(key, value),
       removeAttribute: key => attrs.delete(key),
@@ -37,7 +39,13 @@ function fixture({ editor = false, reduced = false, supported = true } = {}) {
         return animation;
       },
     };
-    const figure = { animations: [], animate: item.animate, translate: 'none' };
+    const figure = {
+      animations: [], animate: item.animate, translate: 'none', offset: 0,
+      getBoundingClientRect() {
+        return { ...item.rect, top: item.rect.top + this.offset,
+          bottom: item.rect.bottom + this.offset };
+      },
+    };
     item.figure = figure;
     item.shadowRoot = { querySelector(selector) {
       assert.equal(selector, 'figure[part~="figure"]');
@@ -52,19 +60,31 @@ function fixture({ editor = false, reduced = false, supported = true } = {}) {
     unobserve(el) { this.observed.delete(el); }
     disconnect() { this.observed.clear(); }
     enter(el, bottom = 100) {
+      el.rect = { ...el.rect, top: bottom - 100, bottom };
       this.callback([{ target: el, isIntersecting: true,
         intersectionRect: { width: 100, height: 1 }, boundingClientRect: { bottom } }]);
     }
     passed(el) {
+      el.rect = { ...el.rect, top: -120, bottom: -20 };
       this.callback([{ target: el, isIntersecting: false,
         intersectionRect: { width: 0, height: 0 }, boundingClientRect: { bottom: -20 } }]);
+    }
+    below(el) {
+      el.rect = { ...el.rect, top: 820, bottom: 920 };
+      this.callback([{ target: el, isIntersecting: false,
+        intersectionRect: { width: 0, height: 0 }, boundingClientRect: el.rect }]);
+    }
+    edge(el) {
+      this.callback([{ target: el, isIntersecting: true,
+        intersectionRect: { width: 100, height: 0 }, boundingClientRect: el.rect }]);
     }
   }
   const context = {
     console, location: { pathname: editor ? '/edit/home' : '/' },
     window: { top: { location: { pathname: editor ? '/edit/home' : '/' } },
       ...(supported ? { IntersectionObserver: IO } : {}) },
-    document: { timeline: { currentTime: 1234 }, documentElement: {}, querySelector: () => null,
+    document: { timeline: { currentTime: 1234 },
+      documentElement: { clientHeight: 800, clientWidth: 1200 }, querySelector: () => null,
       querySelectorAll(selector) {
         assert.equal(selector, 'gallery-freeform[thumbnail-index] media-item[href]');
         return hosts.filter(h => h.isConnected);
@@ -80,7 +100,7 @@ function fixture({ editor = false, reduced = false, supported = true } = {}) {
   vm.createContext(context);
   vm.runInContext(source, context);
   const api = context.mount();
-  const flush = () => { while (queue.length) queue.shift()(); };
+  const flush = () => { for (const callback of queue.splice(0)) callback(); };
   flush();
   return { hosts, host, api, io: observers[0], media, flush,
     mutate: () => { mutations[0].callback(); flush(); } };
@@ -114,25 +134,91 @@ test('individual reveals synchronize a 1000 ms fade with 10% internal movement a
   f.api.destroy();
 });
 
-test('restored scroll and fast jumps skip passed thumbnails without hiding them', () => {
+test('down/up/down entries replay only after full exit and stay observed', () => {
   const f = fixture(), [a] = f.hosts;
-  f.io.passed(a);
   f.io.enter(a);
-  assert.equal(a.animations.length, 0);
+  assert.equal(a.animations.length, 1);
+  f.io.passed(a);
+  assert.equal(a.getAttribute('data-dan-reveal'), 'waiting');
+  assert.equal(a.animations[0].cancelled, true);
+  assert.equal(a.figure.animations[0].cancelled, true);
+  assert.equal(f.io.observed.has(a), true);
+  f.io.enter(a);
+  assert.equal(a.animations.length, 2);
+  f.io.below(a);
+  f.io.enter(a);
+  assert.equal(a.animations.length, 3);
+  assert.equal(a.figure.animations.length, 3);
   assert.equal(a.getAttribute('style'), 'transform: native');
   f.api.destroy();
 });
 
-test('new projects are observed; rebuilt thumbnails retain their visit history', () => {
+test('offscreen initialization and partial intersections never hide or repeatedly reset an item', async () => {
+  const f = fixture(), [a] = f.hosts;
+  f.io.below(a);
+  assert.equal(a.animations.length, 0);
+  assert.equal(a.getAttribute('style'), 'transform: native');
+  f.io.edge(a);
+  f.io.enter(a);
+  f.io.edge(a);
+  assert.equal(a.animations.length, 1);
+  assert.equal(a.animations[0].cancelled, false);
+  a.animations[0].complete();
+  a.figure.animations[0].complete();
+  await new Promise(resolve => setImmediate(resolve));
+  f.io.enter(a);
+  f.io.edge(a);
+  assert.equal(a.animations.length, 1);
+  assert.equal(a.getAttribute('data-dan-reveal'), 'revealed');
+  f.api.destroy();
+});
+
+test('rapid full exits/re-entries do not let old animation promises reset the new reveal', async () => {
+  const f = fixture(), [a] = f.hosts;
+  for (let i = 0; i < 4; i++) {
+    f.io.enter(a);
+    f.io.passed(a);
+  }
+  f.io.enter(a);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(a.animations.length, 5);
+  assert.equal(a.animations[4].cancelled, false);
+  assert.equal(a.getAttribute('data-dan-reveal'), 'revealing');
+  f.api.destroy();
+});
+
+test('a moving visual edge remains visible until it too has fully exited', () => {
+  const f = fixture(), [a] = f.hosts;
+  f.io.enter(a);
+  a.figure.offset = 30;
+  f.io.passed(a); // Native box ends at -20, visual edge still reaches +10.
+  f.flush();
+  assert.equal(a.animations[0].cancelled, false);
+  f.io.enter(a);
+  assert.equal(a.animations.length, 1);
+  f.io.passed(a);
+  a.figure.offset = 0;
+  f.flush();
+  assert.equal(a.animations[0].cancelled, true);
+  assert.equal(a.getAttribute('data-dan-reveal'), 'waiting');
+  f.io.enter(a);
+  assert.equal(a.animations.length, 2);
+  f.api.destroy();
+});
+
+test('new and rebuilt projects are observed and reveal independently', () => {
   const f = fixture(), [a] = f.hosts;
   f.io.enter(a);
   a.isConnected = false;
   const replacement = f.host('#nothing'), added = f.host('#new-project');
   f.hosts.push(replacement, added);
   f.mutate();
-  assert.equal(replacement.getAttribute('data-dan-reveal'), 'revealed');
+  assert.equal(replacement.getAttribute('data-dan-reveal'), 'waiting');
   assert.equal(replacement.animations.length, 0);
   assert.equal(f.io.observed.has(added), true);
+  assert.equal(f.io.observed.has(replacement), true);
+  f.io.enter(replacement);
+  assert.equal(replacement.animations.length, 1);
   f.api.destroy();
 });
 
@@ -152,6 +238,12 @@ test('reduced-motion changes and teardown cancel running reveals without stale a
   f.media.dispatchEvent(new Event('change'));
   assert.equal(a.animations[0].cancelled, true);
   assert.equal(a.figure.animations[0].cancelled, true);
+  assert.equal(f.io.observed.has(a), true);
+  f.media.matches = false;
+  f.media.dispatchEvent(new Event('change'));
+  f.io.passed(a);
+  f.io.enter(a);
+  assert.equal(a.animations.length, 2);
   f.api.destroy();
   await Promise.resolve();
   await Promise.resolve();

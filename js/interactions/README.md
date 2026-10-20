@@ -16,3 +16,5 @@ scroll-reveal.js observes all linked thumbnails in Freeform Thumbnail Indexes.
 It synchronizes a finite media-item fade with a 10%-height individual translate
 on the existing internal figure. No hidden CSS, added wrappers, Cargo positioning
 changes, or native transform overrides. Tests use Node's built-in runner.
+Each thumbnail stays observed and replays in either scroll direction only after
+its native box and moving visual figure have fully exited the viewport.

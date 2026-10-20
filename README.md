@@ -205,10 +205,16 @@ script from Cargo's site-wide HTML. Native content/layout remains in Cargo.
 - If the internal figure is unavailable, the browser lacks movement support, or
   Cargo is already using that figure's individual `translate` property, retain
   the fade without overriding Cargo's styling.
-- Once per page visit, keyed by project URL within the Cargo page node. Rebuilt
-  thumbnails retain their reveal history; a new page visit gets a new history.
-- Items already above the viewport after a scroll restore or fast jump are
-  treated as seen. Scrolling upward does not replay reveals.
+- Replay on each viewport entry, in either scroll direction. The observer stays
+  attached to Cargo's stationary media-item box after every reveal.
+- Per-thumbnail visibility state prevents duplicate/partial intersections from
+  restarting the animation. Reset only after full exit; the reset cancels both
+  effects and restores normal visibility offscreen rather than hiding the item.
+- If the host exits above the viewport while its moving figure is still visible,
+  defer reset until that visual edge also exits. A short-lived animation-frame
+  check handles that edge case; no continuous scroll listener is needed.
+- Rapid full exits cancel the previous effects before re-entry starts a fresh,
+  identical upward reveal. Stale completion promises cannot reset a newer effect.
 - Normal visibility is never hidden by CSS or an inline style. Only a finite,
   non-filling Web Animation controls opacity for 1000 ms. If JS/IO is unavailable,
   callbacks are delayed, or animations fail, thumbnails stay visible by default.
@@ -223,11 +229,12 @@ entry. Nearby items can reveal together; there is no fixed row sequence.
 Its items reset below the viewport and replay on re-entry. Timing appears
 smooth and on the order of a second; it was visually estimated, not measured
 exactly. Our refined adaptation uses a 1000 ms fade with a proportional 10% lift
-on the existing internal figure and follows the requested once-per-visit behavior
-while leaving Cargo's media-item transforms entirely alone.
+on the existing internal figure, replaying on viewport re-entry in either scroll
+direction while leaving Cargo's media-item transforms entirely alone.
 
-`tests/scroll-reveal.test.mjs` covers independent/once-only reveals, existing Cargo
-style preservation, restored scroll, new/rebuilt projects, editor/reduced-motion
+`tests/scroll-reveal.test.mjs` covers independent/repeated reveals, partial/edge
+intersections, rapid direction changes, moving visual edges, existing Cargo
+style preservation, new/rebuilt projects, editor/reduced-motion
 fallbacks, synchronized internal movement, preservation of native figure styling,
 missing APIs, failed animation, and cleanup. GitHub Actions runs these
 tests before publishing; there are no npm package dependencies.

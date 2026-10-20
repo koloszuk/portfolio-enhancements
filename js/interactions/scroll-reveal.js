@@ -15,18 +15,11 @@ function isEditor() {
 
 export function mountScrollReveals() {
   const records = new Map();
-  const visits = new WeakMap();
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
   let frame = 0;
+  let exitFrame = 0;
   let stopped = false;
   let observer;
-
-  function identity(host) {
-    const page = host.closest('.page') || host.closest('gallery-freeform') ||
-      document.documentElement;
-    if (!visits.has(page)) visits.set(page, new Set());
-    return { seen: visits.get(page), key: host.getAttribute('href') };
-  }
 
   function cancel(record) {
     const animations = [record.animation, record.movement];
@@ -40,15 +33,42 @@ export function mountScrollReveals() {
     host.setAttribute('data-dan-reveal', 'revealed');
   }
 
+  function resetAfterExit(host, record) {
+    const box = host.getBoundingClientRect();
+    const visual = host.shadowRoot?.querySelector('figure[part~="figure"]')
+      ?.getBoundingClientRect() || box;
+    const viewport = document.documentElement;
+    const fullyOutside = Math.max(box.bottom, visual.bottom) <= 0 ||
+      Math.min(box.top, visual.top) >= viewport.clientHeight ||
+      Math.max(box.right, visual.right) <= 0 ||
+      Math.min(box.left, visual.left) >= viewport.clientWidth;
+    // The host may leave above the viewport while its downward-offset figure
+    // is still visible. Wait for that last sliver rather than snapping it away.
+    if (record.movement && !fullyOutside) return false;
+    record.inside = false;
+    record.pendingExit = false;
+    cancel(record);
+    host.setAttribute('data-dan-reveal', 'waiting');
+    return true;
+  }
+
+  function checkPendingExits() {
+    exitFrame = 0;
+    if (stopped) return;
+    if (isEditor()) { destroy(); return; }
+    let pending = false;
+    for (const [host, record] of records) {
+      if (record.pendingExit && !resetAfterExit(host, record)) pending = true;
+    }
+    // Only poll during an active lift whose visual edge is still onscreen.
+    if (pending) exitFrame = requestAnimationFrame(checkPendingExits);
+  }
+
   function reveal(host, record) {
-    observer?.unobserve(host);
-    const { seen, key } = identity(host);
-    if (seen.has(key) || motion.matches || isEditor()) {
-      seen.add(key);
+    if (motion.matches || isEditor()) {
       finish(host, record);
       return;
     }
-    seen.add(key);
     try {
       // Fade the whole item (including its native hover decoration), but move
       // only Cargo's internal visual figure. Percentages use the figure's own
@@ -100,11 +120,12 @@ export function mountScrollReveals() {
     }
     for (const host of document.querySelectorAll(thumbnails)) {
       if (records.has(host) || host.closest(navigation)) continue;
-      const record = { href: host.getAttribute('href'), animation: null, movement: null };
+      const record = {
+        href: host.getAttribute('href'), animation: null, movement: null,
+        inside: false, pendingExit: false,
+      };
       records.set(host, record);
-      const { seen, key } = identity(host);
-      if (motion.matches || seen.has(key) || !observer) {
-        seen.add(key);
+      if (!observer) {
         finish(host, record);
       } else {
         // Waiting items are visible by default, including when scrolling is
@@ -122,9 +143,6 @@ export function mountScrollReveals() {
   function motionChanged() {
     if (motion.matches) {
       for (const [host, record] of records) {
-        observer?.unobserve(host);
-        const { seen, key } = identity(host);
-        seen.add(key);
         finish(host, record);
       }
     }
@@ -139,16 +157,19 @@ export function mountScrollReveals() {
         for (const entry of entries) {
           const record = records.get(entry.target);
           if (!record || !entry.target.isConnected) continue;
-          if (entry.isIntersecting && entry.intersectionRect.width > 0 &&
-              entry.intersectionRect.height > 0) {
-            reveal(entry.target, record);
-          } else if (entry.boundingClientRect.bottom <= 0) {
-            // Already passed on restored scroll / large scroll jumps: don't
-            // flash these items again when the visitor scrolls back upward.
-            const { seen, key } = identity(entry.target);
-            seen.add(key);
-            observer.unobserve(entry.target);
-            finish(entry.target, record);
+          if (entry.isIntersecting) {
+            // Edge contact counts as entry. Duplicate/partial intersections do
+            // not restart the fade, even after its first animation has finished.
+            record.pendingExit = false;
+            if (!record.inside) {
+              record.inside = true;
+              reveal(entry.target, record);
+            }
+          } else if (record.inside) {
+            record.pendingExit = true;
+            if (!resetAfterExit(entry.target, record) && !exitFrame) {
+              exitFrame = requestAnimationFrame(checkPendingExits);
+            }
           }
         }
       }, { threshold: 0, rootMargin: '0px' });
@@ -164,6 +185,7 @@ export function mountScrollReveals() {
   function destroy() {
     stopped = true;
     cancelAnimationFrame(frame);
+    cancelAnimationFrame(exitFrame);
     observer?.disconnect();
     mutations.disconnect();
     motion.removeEventListener('change', motionChanged);
