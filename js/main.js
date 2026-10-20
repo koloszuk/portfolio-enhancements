@@ -1,3 +1,4 @@
+import { mountHomepageBackground } from './backgrounds/dot-grid.js';
 import { projects } from './projects.js';
 import { mountProjectHovers } from './interactions/project-hover.js';
 import { mountScrollReveals } from './interactions/scroll-reveal.js';
@@ -9,6 +10,8 @@ const ENABLE_SCROLL_REVEAL = false;
 window.danPortfolio?.hover?.destroy();
 window.danPortfolio?.reveals?.destroy();
 window.danPortfolio?.parallax?.destroy();
+window.danPortfolio?.background?.destroy();
+const background = mountHomepageBackground();
 const hover = mountProjectHovers(projects);
 const reveals = ENABLE_SCROLL_REVEAL ? mountScrollReveals() : null;
 const parallax = mountScrollParallax();
@@ -21,5 +24,6 @@ window.danPortfolio = {
   hover,
   reveals,
   parallax,
+  background,
 };
 console.info('[Portfolio] Project interactions ready', window.danPortfolio.release);

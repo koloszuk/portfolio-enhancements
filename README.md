@@ -245,30 +245,39 @@ fallbacks, synchronized internal movement, preservation of native figure styling
 missing APIs, failed animation, and cleanup. GitHub Actions runs these
 tests before publishing; there are no npm package dependencies.
 
-### Scroll-linked parallax
+### Experimental parallax calibration and reference background
 
-`js/interactions/scroll-parallax.js` replaces inertial motion with a deterministic
-scroll-position calculation. For a native host box with viewport top `t`, height
-`h`, and viewport height `v`, `p = clamp((v - t) / (v + h), 0, 1)` and
-`offsetY = (0.5 - p) * amplitude`. The internal visual figure moves from half the
-amplitude below to half above across its viewport traversal. Stopping preserves
-the offset; reversal retraces the same positions. No physics, easing, transition,
-velocity state, or self-scheduling animation loop remains.
+All calibration controls are in `js/config.js`: `ENABLE_PARALLAX`,
+`PARALLAX_INTENSITY`, `MIN_PARALLAX_OFFSET` (25), `MAX_PARALLAX_OFFSET` (120),
+`PARALLAX_SHORT_HEIGHT` (100), `PARALLAX_TALL_HEIGHT` (550),
+`ENABLE_BACKGROUND_GRID`, `GRID_SPACING` (36), and `GRID_DOT_SIZE` (2).
+Offsets now mean **peak displacement in either direction**, not total travel.
 
-Configuration lives in `parallaxOptions`: 6px traversal for heights at/below
-100px, increasing linearly to 25px at/above 550px. For horizontally overlapping
-neighbors in the same gallery, each amplitude is capped at 50% of their native
-vertical gap (or overlap depth). Thus even worst-case combined displacement
-retains at least half of an existing gap, and intentional overlaps remain
-intersecting. Touching pairs stay stationary. Freeform host coordinates and sizes
-remain untouched. Measurements use host boxes, never the transformed figures.
+`js/interactions/scroll-parallax.js` maps native rendered height `h` continuously:
+`f = clamp((h - 100) / 450, 0, 1)`;
+`M = intensity * (25 + 95 * f)`;
+`p = clamp((viewportHeight - nativeHostTop) / (viewportHeight + h), 0, 1)`;
+`offsetY = (1 - 2*p) * M`.
+Thus 100px, 300px and 550px thumbnails receive peak ranges of ±25px, ±67.2px,
+and ±120px. The previous half-travel normalization and neighbor gap caps have
+been removed for this experiment. Temporary visual overlap is deliberately
+allowed; Cargo's Freeform coordinates, dimensions, and native transforms are
+unchanged. We measure stationary host boxes, never already-transformed figures.
+Paused additive transforms only affect each internal visual figure. A passive
+scroll listener schedules one frame, with no inertia, easing or idle loop.
+Editor/reduced-motion guards and native navigation remain intact.
 
-A passive scroll listener schedules one requestAnimationFrame update. Paused,
-linear additive Web Animations act only as transform setters on the internal
-figure. Resize/mutation observers handle responsive sizing and new projects.
-Editor/reduced-motion guards, hover, and native links remain unchanged.
-`tests/scroll-parallax.test.mjs` covers deterministic reversal, no idle motion,
-height scaling, spacing budgets, preferences, teardown, and dynamic projects.
+`js/backgrounds/dot-grid.js` mounts a fixed, pointer-inert decoration only inside
+the homepage (`L3482832595`). `css/backgrounds/dot-grid.css` paints #BDBDBD dots
+on #E6E6E6, using radial-gradient and CSS variables. The layer uses the page's
+existing isolated stacking context; no native pseudo-elements, positioning,
+blend modes, or new stacking contexts are applied to Cargo content/navigation.
+Turning `ENABLE_BACKGROUND_GRID` off removes only the dots, retaining the grey
+background. Replacement/removal of the homepage and teardown remove the layer.
+The background module is independent of parallax for future graphics work.
+
+`tests/scroll-parallax.test.mjs` checks height differences, peak units,
+determinism/reversal, no idle movement, configuration, preferences and cleanup.
 
 Scroll reveals are temporarily disabled with `ENABLE_SCROLL_REVEAL = false` in
 `js/main.js` so scroll-linked parallax can be evaluated independently. Set it to

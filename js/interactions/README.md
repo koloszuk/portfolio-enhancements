@@ -23,7 +23,7 @@ Direction changes never modify an already-running animation.
 
 scroll-parallax.js applies deterministic viewport-position parallax to the same
 internal figure via a paused additive transform. No velocity or physics code.
-Configuration and formula are documented in the root README. Neighbor-aware
-amplitude caps preserve native gaps and intentional overlaps. Scroll schedules
+Configuration and formula are documented in the root README. Calibration intentionally removes spacing caps so different height responses
+remain visible; temporary visual overlaps are allowed. Scroll schedules
 one update, with no continuous loop. Resize/mutation observers support newly
 added projects and responsive layout; reduced-motion and editor guards apply.

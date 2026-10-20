@@ -1,3 +1,5 @@
+@import url('./backgrounds/dot-grid.css');
+
 /* Only initialized projects opt out of Cargo's pre-existing hover decoration.
    The replacement decoration lives inside their shadow link. No positioning
    properties on media-item, gallery, link, or image sizing are changed. */

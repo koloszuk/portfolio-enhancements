@@ -1,0 +1,17 @@
+/* Fixed decoration inside the homepage's existing isolated stacking context.
+   No new isolation, blend mode, native pseudo-element, or content styles. */
+.page > .dan-background-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: #e6e6e6;
+}
+.page > .dan-background-layer[data-grid="true"] {
+  background-image: radial-gradient(circle at center,
+    #bdbdbd 0 calc(var(--dan-grid-dot-size) / 2),
+    transparent calc(var(--dan-grid-dot-size) / 2));
+  background-size: var(--dan-grid-spacing) var(--dan-grid-spacing);
+  background-position: 0 0;
+  background-repeat: repeat;
+}

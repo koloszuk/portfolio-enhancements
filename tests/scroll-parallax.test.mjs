@@ -2,9 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
+const config = readFileSync(new URL('../js/config.js', import.meta.url), 'utf8').replaceAll('export ', '');
 const source = readFileSync(new URL('../js/interactions/scroll-parallax.js', import.meta.url), 'utf8')
-  .replaceAll('export ', '') + '\nthis.api={amplitudeForHeight,offsetForBox,safeAmplitudes,mountScrollParallax};';
-function fixture({ reduced = false, editor = false, additive = true } = {}) {
+  .replace(/import \{[\s\S]*?\} from '..\/config.js';/, '')
+  .replaceAll('export ', '') + '\nthis.api={maxOffsetForHeight,offsetForBox,mountScrollParallax};';
+function fixture({ reduced = false, editor = false, additive = true, enabled = true, intensity = 1 } = {}) {
   let id = 0;
   const frames = new Map(), effects = [], observers = [];
   const media = Object.assign(new EventTarget(), { matches: reduced });
@@ -36,18 +38,19 @@ function fixture({ reduced = false, editor = false, additive = true } = {}) {
     requestAnimationFrame: fn => { frames.set(++id, fn); return id; },
     cancelAnimationFrame: id => frames.delete(id),
   };
-  vm.runInNewContext(source, context);
+  vm.runInNewContext(config.replace('ENABLE_PARALLAX = true', `ENABLE_PARALLAX = ${enabled}`).replace('PARALLAX_INTENSITY = 1', `PARALLAX_INTENSITY = ${intensity}`) + source, context);
   const mounted = context.api.mountScrollParallax();
   function step() { const batch = [...frames.values()]; frames.clear(); batch.forEach(fn => fn()); }
   step(); // ResizeObserver's initial callback may request one further frame in browsers.
   function scroll(y) { view.scrollY = y; view.dispatchEvent(new Event('scroll')); step(); }
   return { ...context.api, mounted, effects, scroll, step, frames, media, hosts, observers };
 }
-test('height-based traversal amplitudes range from 6 to 25px', () => {
+test('peak offsets vary continuously from 25px small through 67px medium to 120px tall', () => {
   const f = fixture();
-  assert.equal(f.amplitudeForHeight(60), 6);
-  assert.equal(f.amplitudeForHeight(550), 25);
-  assert.ok(f.amplitudeForHeight(300) > 6 && f.amplitudeForHeight(300) < 25);
+  assert.equal(f.maxOffsetForHeight(60), 25);
+  assert.equal(f.maxOffsetForHeight(550), 120);
+  assert.ok(Math.abs(f.maxOffsetForHeight(300) - 67.2222222222) < 0.0001);
+  assert.ok(f.maxOffsetForHeight(500) > 100);
 });
 test('scroll position is deterministic, reversible and has no settling frames', () => {
   const f = fixture(); f.scroll(100);
@@ -60,29 +63,23 @@ test('scroll position is deterministic, reversible and has no settling frames', 
   assert.equal(f.effects.length, 2);
   f.mounted.destroy(); assert.ok(f.effects.every(a => a.cancelled));
 });
-test('viewport entry to exit traverses exactly the configured amplitude', () => {
+test('entry/exit offsets use the full peak, not half of it', () => {
   const f = fixture();
-  assert.equal(f.offsetForBox({top:800,height:200},800,10),5);
-  assert.equal(f.offsetForBox({top:-200,height:200},800,10),-5);
-  assert.equal(f.offsetForBox({top:300,height:200},800,10),0);
+  assert.equal(f.offsetForBox({top:800,height:200},800,25),25);
+  assert.equal(f.offsetForBox({top:-200,height:200},800,25),-25);
+  assert.equal(f.offsetForBox({top:300,height:200},800,25),0);
 });
-test('collision budgets preserve gaps and intentional overlaps at every scroll position', () => {
-  const f = fixture();
-  function box(top, height=100, left=0) { return {top,bottom:top+height,height,left,right:left+100,gallery:1}; }
-  for (const secondTop of [100,104,120,96,80]) {
-    const boxes = [box(0),box(secondTop)];
-    const amplitudes = f.safeAmplitudes(boxes);
-    const separation = secondTop - 100;
-    assert.ok((amplitudes[0]+amplitudes[1])/2 <= Math.abs(separation)*0.5 + 1e-9);
-    for (let y=-900;y<500;y+=10) {
-      const offsets=boxes.map((b,i)=>f.offsetForBox({...b,top:b.top-y},800,amplitudes[i]));
-      const actualGap=secondTop+offsets[1]-(100+offsets[0]);
-      if (separation>0) assert.ok(actualGap>=separation*0.5);
-      else if (separation<0) assert.ok(actualGap<0);
-      else assert.equal(actualGap,0);
-    }
-  }
-  assert.equal(f.safeAmplitudes([box(0),box(100,100,200)])[0],6);
+test('calibration preserves strong size differences without a shared spacing cap', () => {
+  const f=fixture(); f.scroll(0);
+  const offsets=f.effects.map(a=>a.currentTime*240-120);
+  // At equal top positions, the tall thumbnail has a much stronger response.
+  assert.ok(Math.abs(offsets[1]) > Math.abs(offsets[0])*8);
+});
+test('configuration disables effects and scales their range without clipping', () => {
+  const off=fixture({enabled:false}); off.scroll(300); assert.equal(off.effects.length,0);
+  const double=fixture({intensity:2});
+  assert.equal(double.maxOffsetForHeight(550),240);
+  assert.equal(double.effects[0].keyframes[0].transform,'translateY(-240px)');
 });
 test('reduced motion, editor and unsupported additive effects stay safe', () => {
   const f = fixture(); f.media.matches=true; f.media.dispatchEvent(new Event('change')); f.step();
