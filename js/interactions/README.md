@@ -20,3 +20,14 @@ Each thumbnail stays observed and replays in either scroll direction only after
 its native box and moving visual figure have fully exited the viewport.
 Scroll direction is sampled at entry: down starts below, up starts above.
 Direction changes never modify an already-running animation.
+
+inertial-parallax.js adds a maximum 12px velocity-responsive vertical offset to
+that same internal figure using an additive transform Web Animation. It never
+writes native transforms, positions, dimensions, or inline styles. The reveal's
+individual translate remains independent. Height / 550 (clamped 0.15–1) scales
+intensity; scroll down offsets upward and scroll up offsets downward. Input
+velocity decays over 110ms and the visual follows over 85ms (exponential time
+constants), settling exactly to zero and cancelling its effect. Offscreen
+figures, hidden tabs, editor mode and reduced motion do not animate. Unsupported
+additive animation safely disables the effect. Resize/mutation observers support
+responsive and newly added projects. No continuous idle animation loop.

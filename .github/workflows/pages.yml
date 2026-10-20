@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
-      - run: node --test tests/scroll-reveal.test.mjs
+      - run: node --test tests/*.test.mjs
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
