@@ -287,7 +287,7 @@ Text changes never select anchors by visible string or column index.
 
 `js/config.js` exposes `ENABLE_DECORATIVE_LINES`, `ENABLE_LINES_IN_EDITOR`,
 `INTRO_LINE_END_FRACTION`, `BACK_TOP_LINE_START_FRACTION`, color and stroke width.
-Lines appear only on desktop (901px and wider), with 1.5px #3A3A3A strokes.
+Lines appear only on desktop (901px and wider), with 1.5px #BABABA strokes.
 ResizeObserver watches page/content/anchor/column sizes; filtered mutations,
 font readiness, image loads and browser resizing request one measurement frame.
 SVG writes and native image-animation style churn do not schedule a loop.

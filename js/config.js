@@ -8,5 +8,5 @@ export const ENABLE_LINES_IN_EDITOR = true;
 export const LINES_DESKTOP_MIN_WIDTH = 901;
 export const INTRO_LINE_END_FRACTION = 0.7;
 export const BACK_TOP_LINE_START_FRACTION = 0.5;
-export const LINE_COLOR = '#3A3A3A';
+export const LINE_COLOR = '#BABABA';
 export const LINE_STROKE_WIDTH = 1.5;
