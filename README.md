@@ -192,11 +192,12 @@ script from Cargo's site-wide HTML. Native content/layout remains in Cargo.
 `js/main.js`. It automatically discovers linked media items inside
 `gallery-freeform[thumbnail-index]`, including future Cargo projects.
 
-- Opacity 0 → 1 and upward movement, both 1000 ms with
+- Opacity 0 → 1 and direction-aware movement, both 1000 ms with
   `cubic-bezier(0.22, 1, 0.36, 1)` ease-out and a shared animation start time.
 - The fade covers the whole media item, including its native hover decoration.
   Only the internal `figure[part~="figure"]` moves: individual CSS `translate`
-  goes from `0 10%` to `0 0%`. Its height matches each thumbnail, so displacement
+  goes from `0 10%` when scrolling down or `0 -10%` when scrolling up to `0 0%`.
+  Its height matches each thumbnail, so displacement
   scales independently with each project and the responsive layout.
 - Each item triggers on its first nonzero viewport intersection. No stagger,
   delay, extra wrapper, or Cargo transform/position override. Both finite
@@ -207,14 +208,19 @@ script from Cargo's site-wide HTML. Native content/layout remains in Cargo.
   the fade without overriding Cargo's styling.
 - Replay on each viewport entry, in either scroll direction. The observer stays
   attached to Cargo's stationary media-item box after every reveal.
+- A passive scroll listener tracks direction with a 0.5 px jitter tolerance and
+  elastic overscroll clamping. IO also samples position before starting reveals.
+  Direction is captured in each animation's keyframes, so reversing scroll while
+  a thumbnail is visible never reverses or restarts its current animation.
+  Initial/restored pages default to the downward-entry effect until scroll moves.
 - Per-thumbnail visibility state prevents duplicate/partial intersections from
   restarting the animation. Reset only after full exit; the reset cancels both
   effects and restores normal visibility offscreen rather than hiding the item.
-- If the host exits above the viewport while its moving figure is still visible,
+- If the host exits the viewport while its moving figure is still visible,
   defer reset until that visual edge also exits. A short-lived animation-frame
-  check handles that edge case; no continuous scroll listener is needed.
+  check handles that edge case; the scroll listener itself only samples position.
 - Rapid full exits cancel the previous effects before re-entry starts a fresh,
-  identical upward reveal. Stale completion promises cannot reset a newer effect.
+  direction-appropriate reveal. Stale completion promises cannot reset a newer effect.
 - Normal visibility is never hidden by CSS or an inline style. Only a finite,
   non-filling Web Animation controls opacity for 1000 ms. If JS/IO is unavailable,
   callbacks are delayed, or animations fail, thumbnails stay visible by default.
@@ -228,7 +234,7 @@ project imagery and lifts its inner figure about 40 px on individual viewport
 entry. Nearby items can reveal together; there is no fixed row sequence.
 Its items reset below the viewport and replay on re-entry. Timing appears
 smooth and on the order of a second; it was visually estimated, not measured
-exactly. Our refined adaptation uses a 1000 ms fade with a proportional 10% lift
+exactly. Our refined adaptation uses a 1000 ms fade with proportional ±10% movement
 on the existing internal figure, replaying on viewport re-entry in either scroll
 direction while leaving Cargo's media-item transforms entirely alone.
 

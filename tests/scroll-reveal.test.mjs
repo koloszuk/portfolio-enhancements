@@ -8,7 +8,7 @@ const source = readFileSync(new URL('../js/interactions/scroll-reveal.js', impor
   .replace('export function mountScrollReveals', 'function mountScrollReveals') +
   '\nthis.mount = mountScrollReveals;';
 
-function fixture({ editor = false, reduced = false, supported = true } = {}) {
+function fixture({ editor = false, reduced = false, supported = true, scrollY = 0 } = {}) {
   const page = {};
   const queue = [];
   const observers = [];
@@ -79,12 +79,15 @@ function fixture({ editor = false, reduced = false, supported = true } = {}) {
         intersectionRect: { width: 100, height: 0 }, boundingClientRect: el.rect }]);
     }
   }
+  const view = Object.assign(new EventTarget(), {
+    scrollY, top: { location: { pathname: editor ? '/edit/home' : '/' } },
+    ...(supported ? { IntersectionObserver: IO } : {}),
+  });
   const context = {
     console, location: { pathname: editor ? '/edit/home' : '/' },
-    window: { top: { location: { pathname: editor ? '/edit/home' : '/' } },
-      ...(supported ? { IntersectionObserver: IO } : {}) },
+    window: view,
     document: { timeline: { currentTime: 1234 },
-      documentElement: { clientHeight: 800, clientWidth: 1200 }, querySelector: () => null,
+      documentElement: { clientHeight: 800, clientWidth: 1200, scrollHeight: 5000 }, querySelector: () => null,
       querySelectorAll(selector) {
         assert.equal(selector, 'gallery-freeform[thumbnail-index] media-item[href]');
         return hosts.filter(h => h.isConnected);
@@ -103,6 +106,8 @@ function fixture({ editor = false, reduced = false, supported = true } = {}) {
   const flush = () => { for (const callback of queue.splice(0)) callback(); };
   flush();
   return { hosts, host, api, io: observers[0], media, flush,
+    scroll(y, notify = true) { view.scrollY = y; if (notify) view.dispatchEvent(new Event('scroll')); },
+    pageshow() { view.dispatchEvent(new Event('pageshow')); },
     mutate: () => { mutations[0].callback(); flush(); } };
 }
 
@@ -131,6 +136,72 @@ test('individual reveals synchronize a 1000 ms fade with 10% internal movement a
   f.io.enter(a);
   assert.equal(a.animations.length, 1);
   assert.equal(a.getAttribute('data-dan-reveal'), 'revealed');
+  f.api.destroy();
+});
+
+test('direction is captured at entry and never reverses an active reveal', () => {
+  const f = fixture(), [a] = f.hosts;
+  f.scroll(400);
+  f.io.enter(a);
+  assert.equal(a.figure.animations[0].frames[0].translate, '0 10%');
+  f.scroll(300);
+  f.io.enter(a);
+  assert.equal(a.figure.animations.length, 1);
+  assert.equal(a.figure.animations[0].frames[0].translate, '0 10%');
+  f.io.passed(a);
+  f.io.enter(a);
+  assert.equal(a.figure.animations[1].frames[0].translate, '0 -10%');
+  f.scroll(500);
+  f.io.below(a);
+  f.io.enter(a);
+  assert.equal(a.figure.animations[2].frames[0].translate, '0 10%');
+  f.api.destroy();
+});
+
+test('IO samples direction even when its callback arrives before the scroll event', () => {
+  const f = fixture({ scrollY: 700 }), [a] = f.hosts;
+  f.scroll(500, false);
+  f.io.enter(a);
+  assert.equal(a.figure.animations[0].frames[0].translate, '0 -10%');
+  f.api.destroy();
+});
+
+test('restored loading defaults down; subpixel jitter and elastic overscroll do not flip direction', () => {
+  const f = fixture({ scrollY: 500 }), [a] = f.hosts;
+  f.io.enter(a);
+  assert.equal(a.figure.animations[0].frames[0].translate, '0 10%');
+  f.io.passed(a);
+  f.scroll(499.8);
+  f.io.enter(a);
+  assert.equal(a.figure.animations[1].frames[0].translate, '0 10%');
+  f.io.passed(a);
+  f.scroll(0);
+  f.scroll(-30);
+  f.scroll(0);
+  f.io.enter(a);
+  assert.equal(a.figure.animations[2].frames[0].translate, '0 -10%');
+  f.io.passed(a);
+  f.pageshow();
+  f.io.enter(a);
+  assert.equal(a.figure.animations[3].frames[0].translate, '0 10%');
+  f.api.destroy();
+});
+
+test('upward entries also wait for an above-offset visual edge to fully leave', () => {
+  const f = fixture({ scrollY: 500 }), [a] = f.hosts;
+  f.scroll(400);
+  f.io.enter(a);
+  assert.equal(a.figure.animations[0].frames[0].translate, '0 -10%');
+  a.figure.offset = -30;
+  f.io.below(a); // Native top 820, visual top 790 remains visible.
+  f.flush();
+  assert.equal(a.animations[0].cancelled, false);
+  f.io.enter(a);
+  assert.equal(a.animations.length, 1);
+  f.io.below(a);
+  a.figure.offset = 0;
+  f.flush();
+  assert.equal(a.getAttribute('data-dan-reveal'), 'waiting');
   f.api.destroy();
 });
 

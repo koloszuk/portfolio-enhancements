@@ -18,3 +18,5 @@ on the existing internal figure. No hidden CSS, added wrappers, Cargo positionin
 changes, or native transform overrides. Tests use Node's built-in runner.
 Each thumbnail stays observed and replays in either scroll direction only after
 its native box and moving visual figure have fully exited the viewport.
+Scroll direction is sampled at entry: down starts below, up starts above.
+Direction changes never modify an already-running animation.

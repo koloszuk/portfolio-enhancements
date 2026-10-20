@@ -20,6 +20,27 @@ export function mountScrollReveals() {
   let exitFrame = 0;
   let stopped = false;
   let observer;
+  let direction = 'down';
+  function scrollPosition() {
+    const root = document.scrollingElement || document.documentElement;
+    const maximum = Math.max(0, root.scrollHeight - document.documentElement.clientHeight);
+    // Ignore elastic overscroll at either end, including Safari's negative y.
+    return Math.min(maximum, Math.max(0, window.scrollY ?? root.scrollTop ?? 0));
+  }
+  let lastScroll = scrollPosition();
+  function sampleDirection() {
+    const position = scrollPosition();
+    const delta = position - lastScroll;
+    // Accumulate subpixel motion without letting rendering jitter flip direction.
+    if (Math.abs(delta) >= 0.5) {
+      direction = delta > 0 ? 'down' : 'up';
+      lastScroll = position;
+    }
+  }
+  function restoreDirection() {
+    lastScroll = scrollPosition();
+    direction = 'down';
+  }
 
   function cancel(record) {
     const animations = [record.animation, record.movement];
@@ -42,8 +63,8 @@ export function mountScrollReveals() {
       Math.min(box.top, visual.top) >= viewport.clientHeight ||
       Math.max(box.right, visual.right) <= 0 ||
       Math.min(box.left, visual.left) >= viewport.clientWidth;
-    // The host may leave above the viewport while its downward-offset figure
-    // is still visible. Wait for that last sliver rather than snapping it away.
+    // Either offset can leave a visual sliver onscreen after the host exits.
+    // Wait for that last sliver rather than snapping it away.
     if (record.movement && !fullyOutside) return false;
     record.inside = false;
     record.pendingExit = false;
@@ -64,7 +85,7 @@ export function mountScrollReveals() {
     if (pending) exitFrame = requestAnimationFrame(checkPendingExits);
   }
 
-  function reveal(host, record) {
+  function reveal(host, record, entryDirection) {
     if (motion.matches || isEditor()) {
       finish(host, record);
       return;
@@ -84,7 +105,7 @@ export function mountScrollReveals() {
       if (figure && getComputedStyle(figure).translate === 'none') {
         try {
           record.movement = figure.animate([
-            { translate: '0 10%' },
+            { translate: entryDirection === 'up' ? '0 -10%' : '0 10%' },
             { translate: '0 0%' },
           ], { ...revealOptions, fill: 'none' });
         } catch (_) { /* Older browsers retain the fade without movement. */ }
@@ -154,6 +175,9 @@ export function mountScrollReveals() {
     if ('IntersectionObserver' in window) {
       observer = new IntersectionObserver(entries => {
         if (isEditor()) { destroy(); return; }
+        // Also sample here: IO delivery and passive scroll-event order can vary.
+        // The chosen value becomes fixed keyframes, never a live animation input.
+        sampleDirection();
         for (const entry of entries) {
           const record = records.get(entry.target);
           if (!record || !entry.target.isConnected) continue;
@@ -163,7 +187,7 @@ export function mountScrollReveals() {
             record.pendingExit = false;
             if (!record.inside) {
               record.inside = true;
-              reveal(entry.target, record);
+              reveal(entry.target, record, direction);
             }
           } else if (record.inside) {
             record.pendingExit = true;
@@ -178,6 +202,8 @@ export function mountScrollReveals() {
       childList: true, subtree: true, attributes: true, attributeFilter: ['href', 'class'],
     });
     motion.addEventListener('change', motionChanged);
+    window.addEventListener('scroll', sampleDirection, { passive: true });
+    window.addEventListener('pageshow', restoreDirection);
     customElements.whenDefined('media-item').then(schedule);
     schedule();
   }
@@ -189,6 +215,8 @@ export function mountScrollReveals() {
     observer?.disconnect();
     mutations.disconnect();
     motion.removeEventListener('change', motionChanged);
+    window.removeEventListener('scroll', sampleDirection);
+    window.removeEventListener('pageshow', restoreDirection);
     for (const [host, record] of records) {
       cancel(record);
       host.removeAttribute('data-dan-reveal');
