@@ -3,11 +3,14 @@ import { mountProjectHovers } from './interactions/project-hover.js';
 import { mountScrollReveals } from './interactions/scroll-reveal.js';
 import { mountInertialParallax } from './interactions/inertial-parallax.js';
 
+// Set true to restore the existing directional fade/slide reveals.
+const ENABLE_SCROLL_REVEAL = false;
+
 window.danPortfolio?.hover?.destroy();
 window.danPortfolio?.reveals?.destroy();
 window.danPortfolio?.parallax?.destroy();
 const hover = mountProjectHovers(projects);
-const reveals = mountScrollReveals();
+const reveals = ENABLE_SCROLL_REVEAL ? mountScrollReveals() : null;
 const parallax = mountInertialParallax();
 window.danPortfolio = {
   ...window.danPortfolio,

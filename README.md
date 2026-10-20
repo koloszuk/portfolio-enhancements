@@ -259,3 +259,9 @@ observers handle visibility, responsive sizing and new projects. Reduced motion,
 editor mode, hidden tabs and unsupported additive animation safely skip motion.
 No dependencies or idle animation loop. `tests/inertial-parallax.test.mjs` checks
 height scaling, directions, the cap, composition, settling, cleanup and guards.
+
+Scroll reveals are temporarily disabled with `ENABLE_SCROLL_REVEAL = false` in
+`js/main.js` so inertial parallax can be evaluated independently. Set it to
+`true` to reactivate. Existing reveal instances are destroyed before mounting,
+cancelling their opacity/translate animations and removing reveal markers.
+The reveal implementation is preserved; parallax and hover remain enabled.
