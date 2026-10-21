@@ -327,7 +327,7 @@ Add the minimal attributes from `cargo/line-anchors.md`. Intro x follows the
 marked description's right edge plus half the scribble width; its start is the
 scribble's bottom (or the description bottom when no scribble is present).
 Its endpoint is the rendered midpoint of the project linked as
-`#project-08-logitech`, selected by link rather than gallery index. The stable
+`#logitech-―-g309`, selected by link rather than gallery index. The stable
 Freeform host identifies it; the inner figure supplies Cargo's animated visual
 position. Missing/nonintersecting targets hide only line 1 and leave X unchanged. The footer line begins 50% down that
 same content box and ends at the Back to Top link's vertical center, half a
