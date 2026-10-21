@@ -165,6 +165,14 @@ Only initialized projects suppress Cargo's prior tint/title to prevent duplicate
 | Project 11 - Google Pixel 3 | `GooglePixel_ThumbHover_v01.gif` |
 | Project 12 - The Art Department | `TheArtDepartment_ThumbHover_v01.gif` |
 
+Hover titles read Cargo’s native `.caption .page-title` text for the matched
+thumbnail, preserving punctuation, capitalization, and spacing. Native caption
+changes are observed, including delayed caption creation. Keep Cargo’s Thumbnail
+Index Show Title option enabled; our existing CSS hides the native caption while
+using its text in the hover layer. Missing caption text stays blank, never an old
+hardcoded name. Renaming publishes new title text automatically; changing a
+project URL still requires updating its verified link in `js/projects.js`.
+
 `Github_ThumbHover_v01.gif` is unassigned and never requested by the interaction.
 The previous `Nothing_ThumbHover_v01.gif` is preserved but no longer mapped.
 

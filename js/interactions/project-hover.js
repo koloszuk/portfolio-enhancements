@@ -5,6 +5,12 @@ import { createHoverPreloader } from './hover-preload.js';
 const assetBase = new URL('../../assets/', import.meta.url);
 const styleURL = new URL('../../css/interactions/project-hover.css', import.meta.url);
 
+// Cargo's Thumbnail Index renders the page name here when Show Title is enabled.
+// Read only this thumbnail's native caption, never our own overlay or a URL slug.
+export function readCargoProjectTitle(host) {
+  return host.querySelector('.caption .page-title')?.textContent ?? '';
+}
+
 function isEditor() {
   try {
     return /(?:^|\/)edit(?:\/|$)/.test(location.pathname) ||
@@ -35,7 +41,7 @@ export function mountProjectHovers(projects) {
     // Never replace an existing custom-media slot or guess at Cargo markup.
     if (!link || !original || host.querySelector('[slot="custom-media"]')) return;
     const originalLabel = link.getAttribute('aria-label');
-    if (!originalLabel) link.setAttribute('aria-label', project.title);
+    let ownedLabel;
     const style = document.createElement('link');
     style.rel = 'stylesheet';
     style.href = styleURL.href;
@@ -52,7 +58,20 @@ export function mountProjectHovers(projects) {
     tint.className = 'dan-hover-tint';
     const title = document.createElement('span');
     title.className = 'dan-hover-title';
-    title.textContent = project.title;
+    function syncTitle() {
+      const value = readCargoProjectTitle(host);
+      if (title.textContent !== value) title.textContent = value;
+      // Preserve a label supplied by Cargo or subsequently changed by Cargo.
+      if (!originalLabel && (link.getAttribute('aria-label') === ownedLabel ||
+          link.getAttribute('aria-label') === originalLabel)) {
+        if (value) link.setAttribute('aria-label', value);
+        else link.removeAttribute('aria-label');
+        ownedLabel = value || null;
+      }
+    }
+    syncTitle();
+    const titleObserver = new MutationObserver(syncTitle);
+    titleObserver.observe(host, { childList: true, subtree: true, characterData: true });
     layer.append(animation, tint, title);
     let styled = false;
     let hovering = false;
@@ -125,6 +144,7 @@ export function mountProjectHovers(projects) {
     mounted.set(host, {
       valid: () => link.isConnected && layer.isConnected && style.isConnected,
       destroy() {
+        titleObserver.disconnect();
         shadowObserver.disconnect();
         events.abort();
         clearTimeout(resetTimer);
@@ -132,7 +152,7 @@ export function mountProjectHovers(projects) {
         host.removeAttribute('data-dan-hover-active');
         host.removeAttribute('data-dan-gif-ready');
         host.removeAttribute('data-dan-hover');
-        if (!originalLabel && link.getAttribute('aria-label') === project.title) {
+        if (!originalLabel && link.getAttribute('aria-label') === ownedLabel) {
           if (originalLabel === null) link.removeAttribute('aria-label');
           else link.setAttribute('aria-label', originalLabel);
         }
