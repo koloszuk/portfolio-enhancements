@@ -168,8 +168,19 @@ Only initialized projects suppress Cargo's prior tint/title to prevent duplicate
 `Github_ThumbHover_v01.gif` is unassigned and never requested by the interaction.
 The previous `Nothing_ThumbHover_v01.gif` is preserved but no longer mapped.
 
-GIF sources are assigned only on mouse entry or visible keyboard focus, never
-preloaded on page load. Once the shadow stylesheet is ready, the tint/title
+GIF downloads start automatically after the hover system mounts a safe Cargo
+thumbnail. `hoverPreloadOrder` in `js/projects.js` explicitly follows the last
+verified desktop order: Nothing, What is Github, McNificents, MSI, We The People,
+Hello Amsterdam, Keti Koti, Logitech, Dropfake, Github Universe, The Art Department,
+Google Pixel 3. Update this list after rearranging Cargo projects.
+`HOVER_PRELOAD_CONCURRENCY = 2` in `js/config.js` limits background transfers;
+`HOVER_DOWNLOAD_CONCURRENCY = 3` reserves room for urgent hovered/focused GIFs.
+Queued hover requests jump ahead; active transfers are not interrupted. Requests
+are deduplicated and completed responses use normal browser HTTP caching.
+Background work pauses for reduced-data/save-data, reduced-motion, editor, or
+non-hover devices. Explicit user hover/focus can still request its GIF.
+No hidden GIFs are decoded during background preloading. GIF image sources are
+assigned on mouse entry or visible keyboard focus after their transfer completes. Once the shadow stylesheet is ready, the tint/title
 respond immediately to hover independently of GIF completion. A separate
 `data-dan-gif-ready` state fades in the GIF and fades out the static image only
 when that GIF has loaded successfully. Failed/pending GIFs retain the static

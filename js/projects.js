@@ -1,5 +1,5 @@
 // Match verified Cargo project links, never gallery order or slot number.
-// GIFs are requested only on hover/focus; preserve source names for easy updates.
+// Preserve source names for easy updates. Preload order is explicit below.
 export const projects = [
   {
     pageId: 'L0516127503',
@@ -73,4 +73,21 @@ export const projects = [
     title: 'Project 12 - The Art Department',
     animation: 'hover/TheArtDepartment_ThumbHover_v01.gif',
   },
+];
+
+// Last verified desktop gallery order (2026-10-21), independent of project
+// numbering and mapping-array order. Refresh this list after Cargo rearrangements.
+export const hoverPreloadOrder = [
+  'L0516127503', // Nothing
+  'I3145015899', // What is Github
+  'X2017454871', // McNificents
+  'Q2622835587', // MSI
+  'J1241925927', // We The People
+  'K3075759110', // Hello Amsterdam
+  'I1472632429', // Keti Koti
+  'X2637089677', // Logitech
+  'J0533318333', // Dropfake
+  'T3330709296', // Github Universe
+  'Z1899253112', // The Art Department
+  'R0690090438', // Google Pixel 3
 ];

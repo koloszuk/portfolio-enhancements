@@ -18,3 +18,7 @@ export const PROJECT_SCALE_OTHERS = 0.99;
 export const PROJECT_SCALE_NORMAL = 1;
 export const PROJECT_SCALE_DURATION = 300;
 export const PROJECT_SCALE_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)';
+
+export const HOVER_PRELOAD_CONCURRENCY = 2;
+// One additional slot lets a newly hovered GIF bypass occupied background slots.
+export const HOVER_DOWNLOAD_CONCURRENCY = 3;

@@ -35,3 +35,8 @@ Cargo's native Fly in-out preset owns thumbnail scroll movement. External code
 must not change its settings, transforms or timing. The custom reveal module
 above remains disabled via ENABLE_SCROLL_REVEAL = false in ../main.js; when
 inactive it mounts no observers/listeners and applies no opacity or translate.
+
+hover-preload.js manages ordered, deduplicated HTTP-cache preloads for project-hover.js.
+Background and total concurrency are configured in ../config.js; the explicit
+gallery priority list lives in ../projects.js. User hover/focus bypasses queued
+background jobs using the reserved total slot. Teardown aborts pending transfers.

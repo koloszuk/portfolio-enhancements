@@ -1,3 +1,7 @@
+import { hoverPreloadOrder } from '../projects.js';
+import { HOVER_PRELOAD_CONCURRENCY, HOVER_DOWNLOAD_CONCURRENCY } from '../config.js';
+import { createHoverPreloader } from './hover-preload.js';
+
 const assetBase = new URL('../../assets/', import.meta.url);
 const styleURL = new URL('../../css/interactions/project-hover.css', import.meta.url);
 
@@ -13,6 +17,12 @@ export function mountProjectHovers(projects) {
   const mounted = new Map();
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
   const pointer = matchMedia('(hover: hover) and (pointer: fine)');
+  const reducedData = matchMedia('(prefers-reduced-data: reduce)');
+  const connection = navigator.connection;
+  const preloader = createHoverPreloader({
+    backgroundLimit: HOVER_PRELOAD_CONCURRENCY, totalLimit: HOVER_DOWNLOAD_CONCURRENCY,
+  });
+  let preloadsQueued = false;
   let stopped = false;
   let frame = 0;
   const matches = host => projects.find(project =>
@@ -48,14 +58,22 @@ export function mountProjectHovers(projects) {
     let hovering = false;
     let focused = false;
     let resetTimer = 0;
+    let requested = false;
     const events = new AbortController();
     const options = { signal: events.signal };
     const wantsAnimation = () => (hovering || focused) && !motion.matches && !isEditor();
     function update() {
       clearTimeout(resetTimer);
       const wanted = wantsAnimation();
-      if (wanted && !animation.hasAttribute('src')) {
-        animation.src = new URL(project.animation, assetBase).href;
+      if (wanted && !animation.hasAttribute('src') && !requested) {
+        requested = true;
+        preloader.request(new URL(project.animation, assetBase).href, true).then(() => {
+          requested = false;
+          if (events.signal.aborted || !wantsAnimation() || animation.hasAttribute('src')) return;
+          // Same URL as the preload: normally satisfied from the HTTP cache.
+          // Also serves as a direct-image fallback after a preload fetch failure.
+          animation.src = new URL(project.animation, assetBase).href;
+        });
       }
       // Hover UI must remain usable even while the GIF downloads or fails.
       const active = wanted && styled;
@@ -134,11 +152,25 @@ export function mountProjectHovers(projects) {
         mounted.delete(host);
       }
     }
-    if (disabled) return;
+    if (disabled) {
+      preloader.setBackgroundEnabled(false);
+      return;
+    }
     for (const host of document.querySelectorAll('gallery-freeform[thumbnail-index] media-item[href]')) {
       const project = matches(host);
       if (project && !mounted.has(host)) attach(host, project);
     }
+    const preloadAllowed = mounted.size > 0 && pointer.matches && !reducedData.matches && !connection?.saveData;
+    if (preloadAllowed && !preloadsQueued) {
+      preloadsQueued = true;
+      const byId = new Map(projects.map(project => [project.pageId, project]));
+      for (const id of hoverPreloadOrder) {
+        const project = byId.get(id);
+        if (project) preloader.request(new URL(project.animation, assetBase).href);
+      }
+    }
+    // Starts after the first safe Cargo thumbnail scan, never blocking mounting.
+    preloader.setBackgroundEnabled(preloadAllowed);
   }
   function schedule() {
     if (!stopped && !frame) frame = requestAnimationFrame(scan);
@@ -149,6 +181,9 @@ export function mountProjectHovers(projects) {
       childList: true, subtree: true, attributes: true, attributeFilter: ['href'],
     });
     motion.addEventListener('change', schedule);
+    pointer.addEventListener('change', schedule);
+    reducedData.addEventListener('change', schedule);
+    connection?.addEventListener?.('change', schedule);
     customElements.whenDefined('media-item').then(schedule);
     schedule();
   }
@@ -159,6 +194,10 @@ export function mountProjectHovers(projects) {
       cancelAnimationFrame(frame);
       observer.disconnect();
       motion.removeEventListener('change', schedule);
+      pointer.removeEventListener('change', schedule);
+      reducedData.removeEventListener('change', schedule);
+      connection?.removeEventListener?.('change', schedule);
+      preloader.destroy();
       for (const record of mounted.values()) record.destroy();
       mounted.clear();
     },
