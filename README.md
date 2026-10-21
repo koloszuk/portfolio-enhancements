@@ -146,7 +146,7 @@ All 12 verified Cargo project links in `js/projects.js` share the existing
 `project-hover.js` implementation. No gallery index or slot matching is used.
 The original static images, links, Freeform geometry and native scroll motion
 stay in Cargo. Normal state retains original colors without a centered title.
-On hover/focus, the GIF is grayscale with a 50% #E6E6E6 tint and centered black
+On hover/focus, the GIF retains its original colors with a 50% #000000 tint and centered white
 title; image crossfade remains 200 ms. Centered 101%/99% scaling remains 300 ms.
 Only initialized projects suppress Cargo's prior tint/title to prevent duplicates.
 

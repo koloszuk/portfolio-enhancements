@@ -24,13 +24,12 @@
   display: block;
   object-fit: var(--object-fit, cover);
   object-position: var(--frame-position, center center);
-  filter: grayscale(100%);
 }
 
 .dan-hover-tint {
   position: absolute;
   inset: 0;
-  background: rgb(230 230 230 / 50%);
+  background: rgb(0 0 0 / 50%);
 }
 
 .dan-hover-title {
@@ -45,7 +44,7 @@
   font: inherit;
   font-size: 2rem;
   line-height: 1.1;
-  color: #000;
+  color: #FFFFFF;
 }
 
 :host([data-dan-hover]) slot[name="custom-media"] > img {
