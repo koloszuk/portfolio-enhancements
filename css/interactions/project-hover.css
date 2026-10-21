@@ -9,9 +9,11 @@
   overflow: hidden;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 200ms ease, scale var(--dan-scale-duration, 0ms) var(--dan-scale-easing, ease);
+  transition: opacity 200ms ease,
+    scale var(--dan-scale-duration, 0ms) var(--dan-scale-easing, ease),
+    transform-origin var(--dan-scale-duration, 0ms) var(--dan-scale-easing, ease);
   scale: var(--dan-scale-target, 1);
-  transform-origin: center center;
+  transform-origin: var(--dan-scale-origin, 50% 50%);
   border-radius: inherit;
 }
 

@@ -199,6 +199,14 @@ Settings in `js/config.js`: `ENABLE_PROJECT_SCALE`, `PROJECT_SCALE_HOVER` (1.05)
 deferral allows smooth handoff between links. Existing opacity transitions are
 retained, including Nothing's 200 ms GIF crossfade.
 
+On each hover-target change, the module snapshots the native moving link boxes
+and chooses each other thumbnail's nearest corner to the selected link's center.
+The selected project's origin is centered. Origins stay locked during scrolling;
+no per-frame geometry measurement is added. CSS interpolates transform-origin
+alongside scale over the same 300 ms curve, avoiding an instant pivot jump during
+handoff (including corner-to-opposite-corner changes). On exit the last origin
+is retained while scale returns to 1, which restores the exact native geometry.
+
 Enabled only at desktop widths (901px+) with hover/fine-pointer support and no
 reduced-motion preference. Touch input, window blur and preference changes reset
 the state. Editor code never imports this module. Cargo navigation and newly

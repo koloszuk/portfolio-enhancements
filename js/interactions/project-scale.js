@@ -4,6 +4,12 @@ import {
 } from '../config.js';
 
 const thumbnails = 'gallery-freeform[thumbnail-index] media-item[href]';
+// Snapshot Cargo's unscaled moving link, never the already scaled visual image.
+export function closestCorner(rect, reference) {
+  const x = reference.left + reference.width / 2;
+  const y = reference.top + reference.height / 2;
+  return `${x <= rect.left + rect.width / 2 ? '0%' : '100%'} ${y <= rect.top + rect.height / 2 ? '0%' : '100%'}`;
+}
 function isEditor() {
   try {
     return /(?:^|\/)edit(?:\/|$)/.test(location.pathname) ||
@@ -31,6 +37,14 @@ export function mountProjectScale() {
     if (host && (!eligible() || !records.has(host))) host = null;
     if (active === host) return;
     active = host;
+    // Batch geometry reads before writes. Origins stay locked until the next
+    // hover target, so native Fly in-out motion cannot switch corners mid-hover.
+    const reference = active && records.get(active).link.getBoundingClientRect();
+    const origins = reference && [...records].map(([item, record]) => [item,
+      item === active ? '50% 50%' : closestCorner(record.link.getBoundingClientRect(), reference)]);
+    if (origins) for (const [item, origin] of origins) item.style.setProperty('--dan-scale-origin', origin);
+    // Keep the last origin while returning to 1: every origin gives the exact
+    // native position at unit scale, without an unnecessary exit pivot.
     for (const item of records.keys()) item.setAttribute('data-dan-scale-state',
       !active ? 'normal' : item === active ? 'active' : 'other');
   }
@@ -45,6 +59,7 @@ export function mountProjectScale() {
   }
   function attach(host, link, media) {
     const restore = variables(host, {
+      '--dan-scale-origin': '50% 50%',
       '--dan-scale-media-base': transition(media),
       '--dan-scale-tint-base': transition(host, '::after'),
       '--dan-scale-caption-base': host.querySelector('.caption') ? transition(host.querySelector('.caption')) : 'opacity 0s',
@@ -64,6 +79,8 @@ export function mountProjectScale() {
     });
     host.setAttribute('data-dan-scale', '');
     host.setAttribute('data-dan-scale-state', active ? 'other' : 'normal');
+    if (active) host.style.setProperty('--dan-scale-origin', closestCorner(
+      link.getBoundingClientRect(), records.get(active).link.getBoundingClientRect()));
   }
   function scan() {
     frame = 0;

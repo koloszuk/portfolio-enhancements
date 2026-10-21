@@ -19,6 +19,9 @@ layer; the native moving link stays unscaled for stable hit testing. Cargo's
 host/figure transforms and z-order are untouched. Existing opacity transitions
 are composed with scale, and all owned state/listeners are removed on teardown.
 Editor previews never import this interaction.
+Each hover snapshots native moving link geometry: selected origin is centered,
+others use the nearest corner to its center. Origin interpolation shares the
+scale duration/easing to avoid pivot jumps; scrolling never recomputes origins.
 
 scroll-reveal.js observes all linked thumbnails in Freeform Thumbnail Indexes.
 It synchronizes a finite media-item fade with a 10%-height individual translate
