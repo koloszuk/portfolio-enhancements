@@ -192,8 +192,8 @@ unscaled; native Fly in-out transforms, Freeform attributes, dimensions and
 z-order are unchanged. Visual images do not receive pointer events, leaving the
 original moving link as a stable hit area. No wrappers or click handlers are added.
 
-Settings in `js/config.js`: `ENABLE_PROJECT_SCALE`, `PROJECT_SCALE_HOVER` (1.05),
-`PROJECT_SCALE_OTHERS` (0.95), `PROJECT_SCALE_NORMAL` (1),
+Settings in `js/config.js`: `ENABLE_PROJECT_SCALE`, `PROJECT_SCALE_HOVER` (1.01),
+`PROJECT_SCALE_OTHERS` (0.99), `PROJECT_SCALE_NORMAL` (1),
 `PROJECT_SCALE_DURATION` (300 ms), and `PROJECT_SCALE_EASING`
 (`cubic-bezier(0.22, 1, 0.36, 1)`). All projects update together; one-frame leave
 deferral allows smooth handoff between links. Existing opacity transitions are

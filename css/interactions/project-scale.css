@@ -6,10 +6,10 @@
     --dan-scale-target: var(--dan-scale-normal, 1);
   }
   media-item[data-dan-scale-state="active"] {
-    --dan-scale-target: var(--dan-scale-hover, 1.05);
+    --dan-scale-target: var(--dan-scale-hover, 1.01);
   }
   media-item[data-dan-scale-state="other"] {
-    --dan-scale-target: var(--dan-scale-others, 0.95);
+    --dan-scale-target: var(--dan-scale-others, 0.99);
   }
   media-item[data-dan-scale]::part(media) {
     scale: var(--dan-scale-target);

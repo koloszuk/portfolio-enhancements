@@ -44,8 +44,8 @@ test('A-to-B hover applies simultaneous active/other states without a normal-sta
   f.pointer(0,'pointerleave'); f.pointer(1,'pointerenter'); f.flush();
   assert.deepEqual(f.states(),['other','active','other']);
   f.pointer(1,'pointerleave');f.flush();assert.deepEqual(f.states(),['normal','normal','normal']);
-  assert.equal(f.page.style.getPropertyValue('--dan-scale-hover'),'1.05');
-  assert.equal(f.page.style.getPropertyValue('--dan-scale-others'),'0.95');
+  assert.equal(f.page.style.getPropertyValue('--dan-scale-hover'),'1.01');
+  assert.equal(f.page.style.getPropertyValue('--dan-scale-others'),'0.99');
   assert.equal(f.page.style.getPropertyValue('--dan-scale-duration'),'300ms');
 });
 test('editor, reduced motion and unavailable hover support never enable scaling',()=>{
