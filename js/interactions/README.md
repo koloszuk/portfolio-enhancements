@@ -10,7 +10,7 @@ media items, intercept navigation, or change Cargo positioning. Custom media
 must use an inspected supported slot or a non-interactive visual layer.
 
 Project-specific data belongs in ../projects.js. project-hover.js is enabled for
-Nothing only. Its visual layer lives inside Cargo's existing shadow link.
+all mapped projects. Each visual layer lives inside Cargo's existing shadow link.
 
 project-scale.js adds homepage-only mouse hover focus on desktop (901px+, hover
 and fine pointer, no reduced motion). Values live in ../config.js. Individual

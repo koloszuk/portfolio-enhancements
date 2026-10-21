@@ -8,7 +8,7 @@ It does not replace Cargo or control its layout.
 
 - Repository: https://github.com/koloszuk/portfolio-enhancements (main).
 - GitHub Actions deploys external code to GitHub Pages; Cargo remains the CMS.
-- Nothing hover, desktop project scaling and the stationary homepage dot grid remain enabled.
+- All 12 project GIF hovers, desktop project scaling and the stationary homepage dot grid remain enabled.
 - Cargo owns native Fly in-out thumbnail movement. Custom reveals remain disabled
   via `ENABLE_SCROLL_REVEAL = false` in `js/main.js`.
 - Desktop decorative lines require the intro marker described in
@@ -96,7 +96,7 @@ The loader exits in the outer `/edit` UI, unrelated editable documents, and
 inaccessible embedding contexts. Its only editor exception is the verified
 same-origin `client-frame`: this loads `editor-decorations.js` and line CSS,
 never main.js or hover/reveal/background modules. If a download fails, Cargo's existing thumbnail/content stays intact.
-Only mapped projects receive interaction styles; Cargo owns all layout behavior.
+Only mapped projects receive GIF interaction styles; Cargo owns all layout behavior.
 
 ## Verify end to end before enabling interactions
 
@@ -140,30 +140,51 @@ References: [Thumbnail Index](https://docs.cargo.site/thumbnail-index),
 [site-wide custom HTML](https://docs.cargo.site/css-and-html),
 [GitHub Pages workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
 
-## Enabled interaction: Nothing
+## Project hover GIFs
 
-- Source: `assets/hover/Nothing_ThumbHover_v01.gif` (800 × 450, about 16 MB).
-- Default: Cargo's original static thumbnail.
-- Hover: grayscale animation; `#E6E6E6` overlay at 50%; centered black project
-  title; approximately 200 ms transitions.
-- A non-interactive visual layer is appended inside Cargo's existing shadow link.
-  The original image, link sizing, Freeform attributes, and positioning remain
-  intact. The original image fades out only once the GIF has loaded successfully.
-- The feature's stylesheet is loaded inside the shadow root. `css/main.css` only
-  suppresses the old host overlay/caption on initialized projects to avoid double
-  tint and duplicate titles. Existing Cargo CSS and other projects are untouched.
-- Keyboard focus also shows the effect. Touch and reduced-motion users keep the
-  static image. The loader and module both guard against editor execution.
-- GIF loading begins on pointer entry or keyboard focus. After hover/focus exit,
-  the image source is removed following the fade to stop hidden GIF decoding.
-  The first hover can therefore be delayed by downloading the 16 MB GIF.
-- Mutation observers support Cargo replacing thumbnails during navigation;
-  cleanup removes only the feature's nodes, listeners, label, and data attributes.
-- This GIF is fairly large. Avoid downloading all future GIFs on initial load.
+All 12 verified Cargo project links in `js/projects.js` share the existing
+`project-hover.js` implementation. No gallery index or slot matching is used.
+The original static images, links, Freeform geometry and native scroll motion
+stay in Cargo. Normal state retains original colors without a centered title.
+On hover/focus, the GIF is grayscale with a 50% #E6E6E6 tint and centered black
+title; image crossfade remains 200 ms. Centered 101%/99% scaling remains 300 ms.
+Only initialized projects suppress Cargo's prior tint/title to prevent duplicates.
 
-For future projects: drop the public animation in `assets/hover/` and provide the
-Cargo project URL or page ID. Add its mapping, commit, and push. No Cargo paste
-is needed again.
+| Project | GIF in `assets/hover/` |
+| --- | --- |
+| Project 01 - Nothing | `Nothing_ThumbHover_v02.gif` |
+| Project 02 - What is Github | `WhatIsGithub_ThumbHover_v01.gif` |
+| Project 03 - McNificents | `McNificents_ThumbHover_v01.gif` |
+| Project 04 - MSI | `MSI_ThumbHover_v01.gif` |
+| Project 05 - We The People | `WeThePeople_ThumbHover_v01.gif` |
+| Project 06 - Hello Amsterdam | `HelloAmsterdam_ThumbHover_v01.gif` |
+| Project 07 - Keti Koti | `KetiKoti_ThumbHover_v01.gif` |
+| Project 08 - Logitech | `Logitech_ThumbHover_v01.gif` |
+| Project 09 - Dropfake | `Dropfake_ThumbHover_v01.gif` |
+| Project 10 - Github Universe | `GithubUniverse_ThumbHover_v01.gif` |
+| Project 11 - Google Pixel 3 | `GooglePixel_ThumbHover_v01.gif` |
+| Project 12 - The Art Department | `TheArtDepartment_ThumbHover_v01.gif` |
+
+`Github_ThumbHover_v01.gif` is unassigned and never requested by the interaction.
+The previous `Nothing_ThumbHover_v01.gif` is preserved but no longer mapped.
+
+GIF sources are assigned only on mouse entry or visible keyboard focus, never
+preloaded on page load. The static image stays until the requested GIF and
+stylesheet have loaded. On exit, the source is removed after the 220 ms crossfade
+cleanup to stop hidden GIF decoding. Browser caching can reuse downloads during
+repeat hovers. Fast handoffs can briefly overlap the two fading GIFs; GIF decoding
+and network costs still depend on the source and device. Touch without hover and
+reduced-motion users retain static images. The editor never imports interactions.
+
+The twelve mapped sources total approximately 87 MiB. Dropfake (30.9 MiB,
+1920×1080), Nothing v02 (13.9 MiB), and What is Github (9.8 MiB) are particularly
+heavy and can delay the first hover on slower connections. Dropfake's full-size
+RGBA frame is approximately 7.9 MiB; browsers control actual decoding caches.
+No source has been resized, recompressed or converted.
+
+To update a GIF, replace its mapped file while keeping the filename, commit and
+push. Versioned release paths invalidate prior asset caches. For a new project,
+add a mapping with its verified Cargo link and title. No Cargo paste is needed.
 
 ## Local build and maintenance
 
@@ -291,7 +312,7 @@ Scroll reveals are temporarily disabled with `ENABLE_SCROLL_REVEAL = false` in
 cancelling their opacity/translate animations and removing reveal markers.
 The reveal implementation is preserved. It is never mounted while disabled, so
 no reveal listeners, observers, opacity effects or movement animations run.
-Nothing hover, background, loader and GitHub Pages deployment remain enabled.
+Project GIF hovers, background, loader and GitHub Pages deployment remain enabled.
 
 
 ### Anchored desktop lines
