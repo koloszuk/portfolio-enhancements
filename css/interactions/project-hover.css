@@ -1,3 +1,6 @@
+/* Shared with visual scaling so the existing image crossfade stays authoritative. */
+:host([data-dan-hover]) { --dan-hover-media-transition: opacity 200ms ease; }
+
 /* Loaded into the enhanced media item's shadow root, not the document. */
 .dan-hover-layer {
   position: absolute;
@@ -6,7 +9,9 @@
   overflow: hidden;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 200ms ease;
+  transition: opacity 200ms ease, scale var(--dan-scale-duration, 0ms) var(--dan-scale-easing, ease);
+  scale: var(--dan-scale-target, 1);
+  transform-origin: center center;
   border-radius: inherit;
 }
 
@@ -44,7 +49,7 @@
 
 :host([data-dan-hover]) slot[name="custom-media"] > img {
   opacity: 1;
-  transition: opacity 200ms ease;
+  transition: var(--dan-hover-media-transition);
 }
 
 :host([data-dan-hover-active]) .dan-hover-layer {

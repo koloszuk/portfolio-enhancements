@@ -12,6 +12,14 @@ must use an inspected supported slot or a non-interactive visual layer.
 Project-specific data belongs in ../projects.js. project-hover.js is enabled for
 Nothing only. Its visual layer lives inside Cargo's existing shadow link.
 
+project-scale.js adds homepage-only mouse hover focus on desktop (901px+, hover
+and fine pointer, no reduced motion). Values live in ../config.js. Individual
+CSS scale affects inner media, tint and caption, including Nothing's whole hover
+layer; the native moving link stays unscaled for stable hit testing. Cargo's
+host/figure transforms and z-order are untouched. Existing opacity transitions
+are composed with scale, and all owned state/listeners are removed on teardown.
+Editor previews never import this interaction.
+
 scroll-reveal.js observes all linked thumbnails in Freeform Thumbnail Indexes.
 It synchronizes a finite media-item fade with a 10%-height individual translate
 on the existing internal figure. No hidden CSS, added wrappers, Cargo positioning

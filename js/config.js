@@ -11,3 +11,10 @@ export const INTRO_LINE_TARGET_FRACTION = 0.5;
 export const BACK_TOP_LINE_START_FRACTION = 0.5;
 export const LINE_COLOR = '#BABABA';
 export const LINE_STROKE_WIDTH = 1.5;
+
+export const ENABLE_PROJECT_SCALE = true;
+export const PROJECT_SCALE_HOVER = 1.05;
+export const PROJECT_SCALE_OTHERS = 0.95;
+export const PROJECT_SCALE_NORMAL = 1;
+export const PROJECT_SCALE_DURATION = 300;
+export const PROJECT_SCALE_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)';

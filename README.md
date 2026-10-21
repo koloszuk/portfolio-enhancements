@@ -8,7 +8,7 @@ It does not replace Cargo or control its layout.
 
 - Repository: https://github.com/koloszuk/portfolio-enhancements (main).
 - GitHub Actions deploys external code to GitHub Pages; Cargo remains the CMS.
-- Nothing hover and the stationary homepage dot grid remain enabled.
+- Nothing hover, desktop project scaling and the stationary homepage dot grid remain enabled.
 - Cargo owns native Fly in-out thumbnail movement. Custom reveals remain disabled
   via `ENABLE_SCROLL_REVEAL = false` in `js/main.js`.
 - Desktop decorative lines require the intro marker described in
@@ -23,7 +23,7 @@ It does not replace Cargo or control its layout.
 | --- | --- |
 | `js/loader.js` | Stable entry point pasted into Cargo once |
 | `js/main.js` | Explicitly enable interaction modules here |
-| `js/config.js` | Background and decorative-line settings |
+| `js/config.js` | Background, decorative-line and hover-scale settings |
 | `js/editor-decorations.js` | Passive editor-preview entry, no interactions |
 | `js/decorations/` | Page-level SVG decoration independent of Cargo layout |
 | `js/projects.js` | Project ID/URL to animation mappings |
@@ -169,7 +169,7 @@ is needed again.
 
 ```sh
 python3 scripts/build.py
-node --test tests/scroll-reveal.test.mjs
+node --test tests/*.test.mjs
 python3 -m http.server 8080 --directory dist
 ```
 
@@ -181,6 +181,29 @@ For routine updates, review `git diff`, commit, and push to main. Watch Actions
 before reloading Cargo. Roll back by reverting the bad commit and pushing the
 revert. To disconnect all custom code immediately, remove only the integration
 script from Cargo's site-wide HTML. Native content/layout remains in Cargo.
+
+## Homepage project hover scaling
+
+`js/interactions/project-scale.js` tracks mouse entry into each existing shadow
+link in the homepage Freeform Thumbnail Index. `css/interactions/project-scale.css`
+scales the image, native tint/caption and Nothing's complete GIF/tint/title layer
+through the separate CSS `scale` property. Cargo's host, figure and link remain
+unscaled; native Fly in-out transforms, Freeform attributes, dimensions and
+z-order are unchanged. Visual images do not receive pointer events, leaving the
+original moving link as a stable hit area. No wrappers or click handlers are added.
+
+Settings in `js/config.js`: `ENABLE_PROJECT_SCALE`, `PROJECT_SCALE_HOVER` (1.05),
+`PROJECT_SCALE_OTHERS` (0.95), `PROJECT_SCALE_NORMAL` (1),
+`PROJECT_SCALE_DURATION` (300 ms), and `PROJECT_SCALE_EASING`
+(`cubic-bezier(0.22, 1, 0.36, 1)`). All projects update together; one-frame leave
+deferral allows smooth handoff between links. Existing opacity transitions are
+retained, including Nothing's 200 ms GIF crossfade.
+
+Enabled only at desktop widths (901px+) with hover/fine-pointer support and no
+reduced-motion preference. Touch input, window blur and preference changes reset
+the state. Editor code never imports this module. Cargo navigation and newly
+added projects are discovered automatically; teardown restores owned styles.
+`tests/project-scale.test.mjs` covers handoff, reset, guards and cleanup.
 
 ## Project scroll reveals
 

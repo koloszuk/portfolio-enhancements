@@ -1,0 +1,32 @@
+/* Visuals only: Cargo's link, figure, host positioning and z-order stay native. */
+@media (min-width: 901px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  media-item[data-dan-scale] {
+    --dan-scale-target: var(--dan-scale-normal, 1);
+  }
+  media-item[data-dan-scale-state="active"] {
+    --dan-scale-target: var(--dan-scale-hover, 1.05);
+  }
+  media-item[data-dan-scale-state="other"] {
+    --dan-scale-target: var(--dan-scale-others, 0.95);
+  }
+  media-item[data-dan-scale]::part(media) {
+    scale: var(--dan-scale-target);
+    transform-origin: center center;
+    transition: var(--dan-hover-media-transition, var(--dan-scale-media-base, opacity 0s)),
+      scale var(--dan-scale-duration, 300ms) var(--dan-scale-easing, ease);
+    /* Expanded pixels never enlarge Cargo's unscaled, native moving link. */
+    pointer-events: none;
+  }
+  media-item[data-dan-scale]::after {
+    scale: var(--dan-scale-target);
+    transform-origin: center center;
+    transition: var(--dan-scale-tint-base, opacity 0s),
+      scale var(--dan-scale-duration, 300ms) var(--dan-scale-easing, ease);
+  }
+  media-item[data-dan-scale] > .caption {
+    scale: var(--dan-scale-target);
+    transform-origin: center center;
+    transition: var(--dan-scale-caption-base, opacity 0s),
+      scale var(--dan-scale-duration, 300ms) var(--dan-scale-easing, ease);
+  }
+}
