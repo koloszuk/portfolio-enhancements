@@ -57,8 +57,12 @@ export function mountProjectHovers(projects) {
       if (wanted && !animation.hasAttribute('src')) {
         animation.src = new URL(project.animation, assetBase).href;
       }
-      const active = wanted && styled && animation.complete && animation.naturalWidth > 0;
+      // Hover UI must remain usable even while the GIF downloads or fails.
+      const active = wanted && styled;
+      const ready = active && animation.hasAttribute('src') &&
+        animation.complete && animation.naturalWidth > 0;
       host.toggleAttribute('data-dan-hover-active', active);
+      host.toggleAttribute('data-dan-gif-ready', ready);
       if (!wanted) {
         // Stop decoding the hidden GIF once the fade back to Cargo completes.
         resetTimer = setTimeout(() => animation.removeAttribute('src'), 220);
@@ -66,9 +70,9 @@ export function mountProjectHovers(projects) {
     }
     animation.addEventListener('load', update, options);
     animation.addEventListener('error', () => {
-      host.removeAttribute('data-dan-hover-active');
+      host.removeAttribute('data-dan-gif-ready');
       if (!animation.hasAttribute('src')) return;
-      console.warn('[Portfolio] Hover image unavailable; retaining Cargo thumbnail', project.href);
+      console.warn('[Portfolio] Hover image unavailable; retaining static thumbnail, overlay and title', project.href);
     }, options);
     link.addEventListener('pointerenter', event => {
       if (event.pointerType !== 'mouse' || !pointer.matches) return;
@@ -97,6 +101,9 @@ export function mountProjectHovers(projects) {
     root.append(style);
     link.append(layer);
     shadowObserver.observe(root, { childList: true, subtree: true });
+    // Cargo may finish creating a thumbnail under an already stationary pointer.
+    hovering = pointer.matches && link.matches(':hover');
+    focused = link.matches(':focus-visible');
     mounted.set(host, {
       valid: () => link.isConnected && layer.isConnected && style.isConnected,
       destroy() {
@@ -105,6 +112,7 @@ export function mountProjectHovers(projects) {
         clearTimeout(resetTimer);
         animation.removeAttribute('src');
         host.removeAttribute('data-dan-hover-active');
+        host.removeAttribute('data-dan-gif-ready');
         host.removeAttribute('data-dan-hover');
         if (!originalLabel && link.getAttribute('aria-label') === project.title) {
           if (originalLabel === null) link.removeAttribute('aria-label');

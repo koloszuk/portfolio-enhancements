@@ -17,6 +17,8 @@
 }
 
 .dan-hover-animation {
+  opacity: 0;
+  transition: opacity 200ms ease;
   position: absolute;
   inset: 0;
   width: 100%;
@@ -56,12 +58,17 @@
   opacity: 1;
 }
 
-:host([data-dan-hover-active]) slot[name="custom-media"] > img {
+:host([data-dan-gif-ready]) .dan-hover-animation {
+  opacity: 1;
+}
+
+:host([data-dan-gif-ready]) slot[name="custom-media"] > img {
   opacity: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .dan-hover-layer,
+  .dan-hover-animation,
   :host([data-dan-hover]) slot[name="custom-media"] > img {
     transition: none;
   }

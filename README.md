@@ -169,8 +169,12 @@ Only initialized projects suppress Cargo's prior tint/title to prevent duplicate
 The previous `Nothing_ThumbHover_v01.gif` is preserved but no longer mapped.
 
 GIF sources are assigned only on mouse entry or visible keyboard focus, never
-preloaded on page load. The static image stays until the requested GIF and
-stylesheet have loaded. On exit, the source is removed after the 220 ms crossfade
+preloaded on page load. Once the shadow stylesheet is ready, the tint/title
+respond immediately to hover independently of GIF completion. A separate
+`data-dan-gif-ready` state fades in the GIF and fades out the static image only
+when that GIF has loaded successfully. Failed/pending GIFs retain the static
+image underneath the active tint/title. Initialization also detects a pointer
+already over the native link. On exit, the source is removed after the 220 ms crossfade
 cleanup to stop hidden GIF decoding. Browser caching can reuse downloads during
 repeat hovers. Fast handoffs can briefly overlap the two fading GIFs; GIF decoding
 and network costs still depend on the source and device. Touch without hover and
