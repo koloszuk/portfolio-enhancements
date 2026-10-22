@@ -1,0 +1,22 @@
+/* One transparent root-level layer: normal Cargo pages below, pinned pages
+   (native z-index 2) above. No isolation, container opacity, filter or backdrop. */
+body > .dan-foreground-particles {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  overflow: clip;
+  pointer-events: none;
+}
+.dan-foreground-particle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  border-radius: 50%;
+  background: var(--dan-particle-color);
+  pointer-events: none;
+  /* No transition/animation: transforms track actual scroll without delay. */
+}
+@media (prefers-reduced-motion: reduce), (prefers-reduced-data: reduce) {
+  .dan-foreground-particles { display: none; }
+}

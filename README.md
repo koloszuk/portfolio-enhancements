@@ -395,3 +395,41 @@ SVG writes and native image-animation style churn do not schedule a loop.
 Geometry and loader tests run in CI. For interactive local verification, serve
 the repository and open `tests/fixtures/anchored-lines.html`; buttons move each
 anchor independently and add content without editing the real Cargo website.
+
+### Foreground particles
+
+`js/foreground/particles.js` adds one transparent, pointer-inert overlay directly
+to body through the existing public main entry. It survives Cargo page changes
+and uses no page IDs or HTML markers. The editor decoration entry does not load
+it. Reinitialization cleans up the previous controller; mounting twice returns
+the same controller. Six DOM particles are reused rather than added on scroll.
+
+Settings are grouped at the end of `js/config.js`: enabled, count 6, sizes 4–8px,
+speeds 2–3 screen pixels per document-scroll pixel, white, Difference blending,
+seed 2026, and mobile enabled (900px mobile breakpoint). Set
+`ENABLE_PARTICLES_ON_MOBILE = false` to disable on narrower screens. Reduced
+motion, reduced data and Save-Data suppress the overlay, including changes at
+runtime. The particles themselves request no assets or libraries.
+
+Seeded jittered horizontal/vertical strata give a stable starting distribution.
+Larger dots move faster. Each vertical coordinate is positive-modulo wrapping of
+`phase * period - max(0, scrollY) * speed`, offset above the screen, where
+`period = viewportHeight + particleSize + 16px`. Wrapping happens beyond both
+visible edges; returning to the same scroll position restores the same layout
+at the same viewport size. Six nodes means roughly six visible dots; some are
+briefly outside the viewport while recycling. Top elastic overscroll clamps to
+zero. No wheel deltas, inertia, easing, transitions, idle animation loop or
+native scroll changes are used. Scroll events schedule one frame; resize caches
+viewport dimensions. Position calculations and `renderParticle()` are separate:
+a future renderer can return an SVG/image/Lottie visual without changing motion.
+No Lottie/JSON loader is included in this experiment.
+
+`css/foreground/particles.css` fixes the overlay to the viewport and clips its
+children, with z-index 1 (above normal Cargo pages, below native pinned pages at
+z-index 2). Difference blending is on the complete transparent overlay, so its
+white dots blend with the page outside that fixed stacking context, not with an
+isolated transparent child backdrop. No Cargo isolation, navigation blend modes,
+transforms, positioning or background rules are changed. Local tests verify
+math, reversibility, bounds, lifecycle and preference controls. Manual visual
+checks are still needed for Difference inversion over images/backgrounds,
+Header/Footer stacking, recycling at both edges, mobile, and Cargo navigation.

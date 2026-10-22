@@ -1,6 +1,7 @@
 @import url('./interactions/project-scale.css');
 @import url('./decorations/anchored-lines.css');
 @import url('./backgrounds/dot-grid.css');
+@import url('./foreground/particles.css');
 
 /* Only initialized projects opt out of Cargo's pre-existing hover decoration.
    The replacement decoration lives inside their shadow link. No positioning
