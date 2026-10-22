@@ -12,12 +12,18 @@ body > .dan-foreground-particles {
   top: 0;
   left: 0;
   display: block;
+  pointer-events: none;
+  /* This element only translates. Its child shrinks without scaling translation. */
+}
+.dan-foreground-visual {
+  display: block;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   background: var(--dan-particle-color);
   pointer-events: none;
   transform-origin: center center;
-  scale: 1;
-  /* Translation stays immediate; the lifetime animates individual scale only. */
+  transform: scale(1);
 }
 @media (prefers-reduced-motion: reduce), (prefers-reduced-data: reduce) {
   .dan-foreground-particles { display: none; }

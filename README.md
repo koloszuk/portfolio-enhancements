@@ -398,60 +398,58 @@ anchor independently and add content without editing the real Cargo website.
 
 ### Foreground particles
 
-`js/foreground/particles.js` adds one transparent, pointer-inert overlay directly
-to body through the existing public main entry. It survives Cargo page changes
-and uses no page IDs or HTML markers. The editor decoration entry does not load
-it. Reinitialization cleans up the previous controller; mounting twice returns
-the same controller. Three DOM particles are reused rather than added on scroll.
+`js/foreground/particles.js` adds one transparent, pointer-inert body overlay
+through the public main entry, across all Cargo pages without page IDs or HTML
+markers. The editor never imports it. Three reusable particle wrappers each
+contain one visual child. Only wrappers translate; only children shrink, avoiding
+CSS individual-scale composition multiplying a wrapper's translation.
+`renderParticle()` can later render SVG/image/Lottie content inside that child;
+no animation assets or libraries are loaded for this experiment.
 
-Settings are grouped at the end of `js/config.js`: enabled, count 3, sizes 4–8px,
-speeds 1.5 / 3 / 5 screen pixels per document-scroll pixel, white, Difference blending,
-seed 2026, and mobile enabled (900px mobile breakpoint). Set
+Settings are grouped at the end of `js/config.js`: count 3, sizes 4–8px, starting
+speeds 0.75 / 1.5 / 2.5 CSS pixels per scroll pixel, white, Difference blending,
+seed 2026, mobile enabled (900px breakpoint). Set
 `ENABLE_PARTICLES_ON_MOBILE = false` to disable on narrower screens. Reduced
-motion, reduced data and Save-Data suppress the overlay, including changes at
-runtime. The particles themselves request no assets or libraries.
+motion, reduced data and Save-Data suppress the overlay, including runtime
+changes. `MIN_LIFETIME = 2000`, `MAX_LIFETIME = 5000`, `SHRINK_DURATION = 400`,
+`SHRINK_TARGET_SCALE = 0`, and
+`SHRINK_EASING = cubic-bezier(0.22, 1, 0.36, 1)` control disappearance.
 
-Seeded jittered horizontal/vertical strata give a stable starting distribution.
-Larger dots move faster. Each vertical coordinate is positive-modulo wrapping of
-`phase * period - max(0, scrollY) * speed`, offset above the screen, where
-`period = viewportHeight + particleSize + 16px`. Wrapping happens beyond both
-visible edges; returning to the same scroll position restores the same layout
-at the same viewport size. Three nodes are reused; visible count decreases as
-lifetimes expire. Top elastic overscroll clamps to zero. Position has no wheel
-deltas, inertia, easing, transitions, idle animation loop or native scroll changes. Scroll events schedule one frame; resize caches
-viewport dimensions. Position calculations and `renderParticle()` are separate:
-a future renderer can return an SVG/image/Lottie visual without changing motion.
-No Lottie/JSON loader is included in this experiment.
+Initial positions use seeded jittered strata. On first viewport entry of a new
+visit, one seeded 2–5 second timer starts. It does not restart on repeated scroll
+events or same-cycle re-entry. Expiry animates the child's `transform: scale(1)`
+to `scale(0)` around center for 400ms, with forwards fill and a static target-scale
+fallback if animation is unavailable. It works while idle and leaves the outer
+translation untouched. Finished dots remain hidden until safely recycled.
 
-`css/foreground/particles.css` fixes the overlay to the viewport and clips its
-children, with z-index 1 (above normal Cargo pages, below native pinned pages at
-z-index 2). Difference blending is on the complete transparent overlay, so its
-white dots blend with the page outside that fixed stacking context, not with an
-isolated transparent child backdrop. No Cargo isolation, navigation blend modes,
-transforms, positioning or background rules are changed. Local tests verify
-math, reversibility, bounds, lifecycle and preference controls. Manual visual
-checks are still needed for Difference inversion over images/backgrounds,
-Header/Footer stacking, recycling at both edges, mobile, and Cargo navigation.
+Modulo wrapping uses absolute document scroll relative to the current traversal
+anchor, never wheel deltas, velocity, inertia or a running idle loop. A new cycle
+marks recycling pending; updates happen only when the entire unscaled dot is
+outside the viewport and its shrink animation is no longer running. Fast jumps
+that skip the safe zone defer recycling instead of changing visible X/depth or
+reviving a hidden dot. The next eligible offscreen update cancels the old timer
+and animation, restores scale, and generates a new X and depth. A seeded hash of
+particle index, recycling generation and parameter channel makes choices
+reproducible for the same event sequence. Eight bounded X candidates are ranked
+by separation from the other particles; positions stay within horizontal bounds.
+Slow/middle/fast depth bands preserve meaningful variation, while each particle
+gets new depth, size and speed within its band on recycling. Sizes stay 4–8px.
 
-Particle lifetimes are configured alongside movement: `MIN_LIFETIME = 2000`,
-`MAX_LIFETIME = 5000`, `SHRINK_DURATION = 400`, `SHRINK_TARGET_SCALE = 0`, and
-`SHRINK_EASING = cubic-bezier(0.22, 1, 0.36, 1)`. Minimum/midpoint/maximum speeds
-are `MIN_SCROLL_SPEED`, `MID_SCROLL_SPEED`, `MAX_SCROLL_SPEED`. Three seeded depth
-assignments use one speed each, with larger dots closer/faster.
+A recycled traversal anchors its new speed to the current scroll position and an
+offscreen entry point on the same side, avoiding a visible position jump from
+multiplying a new speed by the full page offset. Movement stops immediately with
+scrolling and reverses within a traversal. Lifetime and recycle history mean the
+entire arrangement is no longer a pure function of global scroll position after
+recycling. Resize rebases cycle bookkeeping without reviving hidden particles.
+Timers/animations/listeners are cleaned up on teardown or accessibility changes.
+No new nodes are created per cycle; viewport geometry is cached on resize.
 
-On first viewport entry in a modulo cycle, one timeout starts using a hash of
-seed, particle index and signed cycle number. Scrolling does not restart it.
-After 2–5 seconds, a 400ms Web Animation shrinks individual CSS `scale` around
-center; the existing `transform` continues handling immediate scroll position.
-Completed dots remain at scale zero, with no new DOM nodes or idle JS loop.
-If individual-scale animation is unavailable, the target scale is applied as a
-static fallback. A full offscreen wrap in either direction cancels the old
-animation/timer and restores scale 1 before entry; same-cycle exit/re-entry does
-not revive an expired dot. Large scroll jumps count mathematically crossed
-wraps, even if no offscreen frame was painted. Resize rebases cycle bookkeeping
-without reviving hidden particles or restarting timers. Position is reversible;
-time-dependent visibility intentionally is not. A fresh visit to the same cycle
-uses the same seeded lifetime duration. Disabling/destroying the overlay cancels
-all three possible timers and animations. Local tests use a fake clock and check
-animation endpoints/settings, not browser interpolation; manually check the
-400ms shrink and rapid scroll/reverse recycling visually.
+`css/foreground/particles.css` clips the viewport overlay at z-index 1, above
+ordinary Cargo pages and below native pinned pages at z-index 2. Difference
+blending is on the complete transparent overlay so its white graphics blend
+against actual page content. No Cargo positioning, isolation, backgrounds,
+navigation blending or native scroll animations are changed. Local tests verify
+nested transform ownership, no idle translation, seeded X/depth changes, depth
+bands, both scroll directions, offscreen-only updates, animation gating, timers,
+preference controls and lifecycle. Browser interpolation, Difference inversion,
+Header/Footer stacking and fast-scroll appearance still need manual visual checks.
