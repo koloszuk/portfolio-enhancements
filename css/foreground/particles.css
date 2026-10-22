@@ -15,7 +15,9 @@ body > .dan-foreground-particles {
   border-radius: 50%;
   background: var(--dan-particle-color);
   pointer-events: none;
-  /* No transition/animation: transforms track actual scroll without delay. */
+  transform-origin: center center;
+  scale: 1;
+  /* Translation stays immediate; the lifetime animates individual scale only. */
 }
 @media (prefers-reduced-motion: reduce), (prefers-reduced-data: reduce) {
   .dan-foreground-particles { display: none; }

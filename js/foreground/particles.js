@@ -1,7 +1,8 @@
 import {
   ENABLE_FOREGROUND_PARTICLES, PARTICLE_COUNT, MIN_PARTICLE_SIZE, MAX_PARTICLE_SIZE,
-  MIN_SCROLL_SPEED, MAX_SCROLL_SPEED, PARTICLE_COLOR, PARTICLE_BLEND_MODE,
+  MIN_SCROLL_SPEED, MID_SCROLL_SPEED, MAX_SCROLL_SPEED, PARTICLE_COLOR, PARTICLE_BLEND_MODE,
   PARTICLE_SEED, ENABLE_PARTICLES_ON_MOBILE, PARTICLE_MOBILE_MAX_WIDTH,
+  MIN_LIFETIME, MAX_LIFETIME, SHRINK_DURATION, SHRINK_TARGET_SCALE, SHRINK_EASING,
 } from '../config.js';
 
 let active = null;
@@ -16,13 +17,15 @@ export function createParticleDefinitions(count = PARTICLE_COUNT, seed = PARTICL
     [rows[i], rows[j]] = [rows[j], rows[i]];
   }
   return rows.map((row, i) => {
-    const depth = random();
+    const depth = count > 1 ? row / (count - 1) : 0.5;
     return {
       type: 'DOT',
       x: (i + 0.15 + random() * 0.7) / count,
       phase: (row + 0.1 + random() * 0.8) / count,
       size: MIN_PARTICLE_SIZE + depth * (MAX_PARTICLE_SIZE - MIN_PARTICLE_SIZE),
-      speed: MIN_SCROLL_SPEED + depth * (MAX_SCROLL_SPEED - MIN_SCROLL_SPEED),
+      speed: depth <= 0.5
+        ? MIN_SCROLL_SPEED + depth * 2 * (MID_SCROLL_SPEED - MIN_SCROLL_SPEED)
+        : MID_SCROLL_SPEED + (depth - 0.5) * 2 * (MAX_SCROLL_SPEED - MID_SCROLL_SPEED),
     };
   });
 }
@@ -33,7 +36,15 @@ export function particlePosition(particle, scrollY, width, height) {
   const distance = particle.phase * period - Math.max(0, scrollY) * particle.speed;
   // Positive modulo wraps in both directions, only beyond the visible edges.
   const y = ((distance % period) + period) % period - particle.size - margin;
-  return { x: particle.x * Math.max(0, width - particle.size), y };
+  return { x: particle.x * Math.max(0, width - particle.size), y, cycle: Math.floor(distance / period) };
+}
+
+export function particleLifetime(index, cycle, seed = PARTICLE_SEED) {
+  let hash = (seed ^ Math.imul(index + 1, 0x9e3779b1) ^ Math.imul(cycle, 0x85ebca6b)) >>> 0;
+  hash = Math.imul(hash ^ (hash >>> 16), 0x7feb352d);
+  hash = Math.imul(hash ^ (hash >>> 15), 0x846ca68b);
+  const fraction = ((hash ^ (hash >>> 16)) >>> 0) / 4294967296;
+  return MIN_LIFETIME + fraction * (MAX_LIFETIME - MIN_LIFETIME);
 }
 
 // Visual creation is independent of scroll math. Future SVG/image/Lottie renderers
@@ -62,15 +73,51 @@ export function mountForegroundParticles() {
   const mobile = matchMedia(`(max-width: ${PARTICLE_MOBILE_MAX_WIDTH}px)`);
   const connection = navigator.connection;
   let overlay = null, visuals = [], width = 0, height = 0, frame = 0, stopped = false;
+  let lifetimes = [], geometryChanged = false;
+
+  function resetLifetime(i, cycle) {
+    const previous = lifetimes[i];
+    clearTimeout(previous?.timer);
+    previous?.animation?.cancel();
+    visuals[i].style.scale = '1';
+    return lifetimes[i] = { cycle, started: false };
+  }
+  function clearLifetimes() {
+    for (const record of lifetimes) {
+      clearTimeout(record.timer);
+      record.animation?.cancel();
+    }
+    lifetimes = [];
+  }
 
   function draw() {
     frame = 0;
     if (!overlay || stopped) return;
     const scroll = window.scrollY;
     for (let i = 0; i < definitions.length; i++) {
-      const { x, y } = particlePosition(definitions[i], scroll, width, height);
+      const { x, y, cycle } = particlePosition(definitions[i], scroll, width, height);
       visuals[i].style.transform = `translate3d(${x}px, ${y}px, 0)`;
+      let record = lifetimes[i];
+      // A resize changes modulo geometry, not the particle's lifetime. Only a
+      // real scroll-driven wrap (fully outside the viewport) restores its scale.
+      if (!record) record = resetLifetime(i, cycle);
+      else if (geometryChanged) record.cycle = cycle;
+      else if (record.cycle !== cycle) record = resetLifetime(i, cycle);
+      if (!record.started && y < height && y + definitions[i].size > 0) {
+        record.started = true;
+        record.timer = setTimeout(() => {
+          if (stopped || lifetimes[i] !== record) return;
+          const node = visuals[i];
+          node.style.scale = String(SHRINK_TARGET_SCALE);
+          try {
+            record.animation = node.animate([
+              { scale: 1 }, { scale: SHRINK_TARGET_SCALE },
+            ], { duration: SHRINK_DURATION, easing: SHRINK_EASING, fill: 'forwards' });
+          } catch (_) { /* Static scale is the fallback if individual-scale animation is unavailable. */ }
+        }, particleLifetime(i, cycle));
+      }
     }
+    geometryChanged = false;
   }
   function schedule() {
     if (overlay && !stopped && !frame) frame = requestAnimationFrame(draw);
@@ -79,10 +126,12 @@ export function mountForegroundParticles() {
     if (stopped) return;
     const enabled = !isEditor() && !motion.matches && !data.matches && !connection?.saveData &&
       (ENABLE_PARTICLES_ON_MOBILE || !mobile.matches);
+    geometryChanged = geometryChanged || height !== window.innerHeight;
     width = window.innerWidth;
     height = window.innerHeight;
     if (!enabled) {
       cancelAnimationFrame(frame); frame = 0;
+      clearLifetimes();
       overlay?.remove(); overlay = null; visuals = [];
       return;
     }
@@ -105,6 +154,7 @@ export function mountForegroundParticles() {
     if (stopped) return;
     stopped = true;
     cancelAnimationFrame(frame);
+    clearLifetimes();
     overlay?.remove(); overlay = null; visuals = [];
     window.removeEventListener('scroll', schedule);
     window.removeEventListener('resize', refresh);

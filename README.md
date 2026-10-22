@@ -402,10 +402,10 @@ anchor independently and add content without editing the real Cargo website.
 to body through the existing public main entry. It survives Cargo page changes
 and uses no page IDs or HTML markers. The editor decoration entry does not load
 it. Reinitialization cleans up the previous controller; mounting twice returns
-the same controller. Six DOM particles are reused rather than added on scroll.
+the same controller. Three DOM particles are reused rather than added on scroll.
 
-Settings are grouped at the end of `js/config.js`: enabled, count 6, sizes 4–8px,
-speeds 2–3 screen pixels per document-scroll pixel, white, Difference blending,
+Settings are grouped at the end of `js/config.js`: enabled, count 3, sizes 4–8px,
+speeds 1.5 / 3 / 5 screen pixels per document-scroll pixel, white, Difference blending,
 seed 2026, and mobile enabled (900px mobile breakpoint). Set
 `ENABLE_PARTICLES_ON_MOBILE = false` to disable on narrower screens. Reduced
 motion, reduced data and Save-Data suppress the overlay, including changes at
@@ -416,10 +416,9 @@ Larger dots move faster. Each vertical coordinate is positive-modulo wrapping of
 `phase * period - max(0, scrollY) * speed`, offset above the screen, where
 `period = viewportHeight + particleSize + 16px`. Wrapping happens beyond both
 visible edges; returning to the same scroll position restores the same layout
-at the same viewport size. Six nodes means roughly six visible dots; some are
-briefly outside the viewport while recycling. Top elastic overscroll clamps to
-zero. No wheel deltas, inertia, easing, transitions, idle animation loop or
-native scroll changes are used. Scroll events schedule one frame; resize caches
+at the same viewport size. Three nodes are reused; visible count decreases as
+lifetimes expire. Top elastic overscroll clamps to zero. Position has no wheel
+deltas, inertia, easing, transitions, idle animation loop or native scroll changes. Scroll events schedule one frame; resize caches
 viewport dimensions. Position calculations and `renderParticle()` are separate:
 a future renderer can return an SVG/image/Lottie visual without changing motion.
 No Lottie/JSON loader is included in this experiment.
@@ -433,3 +432,26 @@ transforms, positioning or background rules are changed. Local tests verify
 math, reversibility, bounds, lifecycle and preference controls. Manual visual
 checks are still needed for Difference inversion over images/backgrounds,
 Header/Footer stacking, recycling at both edges, mobile, and Cargo navigation.
+
+Particle lifetimes are configured alongside movement: `MIN_LIFETIME = 2000`,
+`MAX_LIFETIME = 5000`, `SHRINK_DURATION = 400`, `SHRINK_TARGET_SCALE = 0`, and
+`SHRINK_EASING = cubic-bezier(0.22, 1, 0.36, 1)`. Minimum/midpoint/maximum speeds
+are `MIN_SCROLL_SPEED`, `MID_SCROLL_SPEED`, `MAX_SCROLL_SPEED`. Three seeded depth
+assignments use one speed each, with larger dots closer/faster.
+
+On first viewport entry in a modulo cycle, one timeout starts using a hash of
+seed, particle index and signed cycle number. Scrolling does not restart it.
+After 2–5 seconds, a 400ms Web Animation shrinks individual CSS `scale` around
+center; the existing `transform` continues handling immediate scroll position.
+Completed dots remain at scale zero, with no new DOM nodes or idle JS loop.
+If individual-scale animation is unavailable, the target scale is applied as a
+static fallback. A full offscreen wrap in either direction cancels the old
+animation/timer and restores scale 1 before entry; same-cycle exit/re-entry does
+not revive an expired dot. Large scroll jumps count mathematically crossed
+wraps, even if no offscreen frame was painted. Resize rebases cycle bookkeeping
+without reviving hidden particles or restarting timers. Position is reversible;
+time-dependent visibility intentionally is not. A fresh visit to the same cycle
+uses the same seeded lifetime duration. Disabling/destroying the overlay cancels
+all three possible timers and animations. Local tests use a fake clock and check
+animation endpoints/settings, not browser interpolation; manually check the
+400ms shrink and rapid scroll/reverse recycling visually.
