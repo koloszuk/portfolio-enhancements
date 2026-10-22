@@ -1,6 +1,6 @@
 import { mountProjectScale } from './interactions/project-scale.js';
 import { mountAnchoredLines } from './decorations/anchored-lines.js';
-import { mountHomepageBackground } from './backgrounds/dot-grid.js';
+import { mountGlobalBackground } from './backgrounds/dot-grid.js';
 import { projects } from './projects.js';
 import { mountProjectHovers } from './interactions/project-hover.js';
 import { mountScrollReveals } from './interactions/scroll-reveal.js';
@@ -15,7 +15,7 @@ window.danPortfolio?.lines?.destroy();
 window.danPortfolio?.scale?.destroy();
 const scale = mountProjectScale();
 const lines = mountAnchoredLines();
-const background = mountHomepageBackground();
+const background = mountGlobalBackground();
 const hover = mountProjectHovers(projects);
 const reveals = ENABLE_SCROLL_REVEAL ? mountScrollReveals() : null;
 window.danPortfolio = {

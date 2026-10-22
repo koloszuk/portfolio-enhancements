@@ -8,7 +8,7 @@ It does not replace Cargo or control its layout.
 
 - Repository: https://github.com/koloszuk/portfolio-enhancements (main).
 - GitHub Actions deploys external code to GitHub Pages; Cargo remains the CMS.
-- All 12 project GIF hovers, desktop project scaling and the stationary homepage dot grid remain enabled.
+- All 12 project GIF hovers, desktop project scaling and the stationary global dot pattern remain enabled.
 - Cargo owns native Fly in-out thumbnail movement. Custom reveals remain disabled
   via `ENABLE_SCROLL_REVEAL = false` in `js/main.js`.
 - Desktop decorative lines require the intro marker described in
@@ -317,17 +317,42 @@ Cargo owns thumbnail scroll movement through its native Fly in-out preset,
 intensity 2. External code does not set movement transforms, animation timing,
 or Freeform coordinates. Native animation settings remain managed in Cargo.
 
-Background controls stay in `js/config.js`: `ENABLE_BACKGROUND_GRID`,
-`GRID_SPACING` (36), `GRID_DOT_SIZE` (2), and `HOMEPAGE_ID`.
+Background controls live in `css/backgrounds/dot-grid.css`:
+`--ENABLE_BACKGROUND_PATTERN: 1` (0 disables dots), `--PATTERN_TYPE: dots`
+(or `none`), `--DOT_SIZE: 2px`, `--DOT_SPACING: 36px`, `--DOT_COLOR: #bdbdbd`,
+and `--DOT_OPACITY: 1`. To replace the pattern later, change
+`--dan-pattern-image`; no interaction module depends on the dot implementation.
 
-`js/backgrounds/dot-grid.js` mounts a fixed, pointer-inert decoration only inside
-the homepage (`L3482832595`). `css/backgrounds/dot-grid.css` paints #BDBDBD dots
-on #E6E6E6, using radial-gradient and CSS variables. The layer uses the page's
-existing isolated stacking context; no native pseudo-elements, positioning,
-blend modes, or new stacking contexts are applied to Cargo content/navigation.
-Turning `ENABLE_BACKGROUND_GRID` off removes only the dots, retaining the grey
-background. Replacement/removal of the homepage and teardown remove the layer.
-The background module remains independent for future graphics work.
+Cargo remains the background color editor: change Site Background in Cargo's
+Site Settings, or Page Background / Content Background in the relevant page's
+settings, and publish. External code supplies no solid color. Cargo's native
+`--site-background-color` is extended onto the HTML root canvas, with computed
+body color as the fallback, to reduce white/mismatched elastic overscroll paint.
+Per-page colors are not copied onto the root: the site color remains the canvas
+outside page boundaries.
+
+`js/backgrounds/dot-grid.js` maintains one site-level, transparent, pointer-inert
+pattern before Cargo's positioned content tree. Page and content layers have
+native isolated stacking contexts; opaque backgrounds would cover the site
+pattern, so only those surfaces receive their own matching decoration behind
+content. Transparent surfaces share the underlying pattern; translucent colors
+keep tinting the pattern beneath them. All copies use viewport-aligned CSS tiles,
+never a scroll handler. Removed pages lose their decorations; new pages are
+found automatically. Pinned/fixed/overlay pages, including Header I0367072328
+and Footer S2531296503, are excluded. Cargo's backgrounds, wallpaper, noise,
+positioning, isolation and Difference blending are not rewritten. Existing
+opaque wallpaper imagery can cover the pattern intentionally.
+
+Root canvas paint and fixed-background compositing during macOS rubber-banding
+are browser-controlled. Local tests verify lifecycle, background selection,
+configuration and editor exclusion, not compositor output. Manually check Home,
+About and project pages at both scroll limits, including transparent pinned
+navigation. Dots may still clip or shift during compositor overscroll (and fixed
+background attachment varies on mobile); page-specific colors can differ from
+the site canvas. Native physics remain enabled. If the browser still produces
+unacceptable seams, the smallest optional fallback is root
+`overscroll-behavior-y: none`, trading away vertical rubber-banding. That fallback
+is **not enabled** and requires a separate design decision.
 
 Scroll reveals are temporarily disabled with `ENABLE_SCROLL_REVEAL = false` in
 `js/main.js` while Cargo handles thumbnail movement. Set it to

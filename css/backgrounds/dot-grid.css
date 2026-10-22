@@ -1,17 +1,47 @@
-/* Fixed decoration inside the homepage's existing isolated stacking context.
-   No new isolation, blend mode, native pseudo-element, or content styles. */
-.page > .dan-background-layer {
+/* Pattern controls. Cargo remains the sole source of every solid background. */
+:root {
+  --ENABLE_BACKGROUND_PATTERN: 1;
+  --PATTERN_TYPE: dots; /* dots or none; replace --dan-pattern-image for future art */
+  --DOT_SIZE: 2px;
+  --DOT_SPACING: 36px;
+  --DOT_COLOR: #bdbdbd;
+  --DOT_OPACITY: 1;
+  --dan-pattern-image: radial-gradient(circle at center,
+    color-mix(in srgb, var(--DOT_COLOR) calc(var(--DOT_OPACITY) * 100%), transparent)
+      0 calc(var(--DOT_SIZE) / 2), transparent calc(var(--DOT_SIZE) / 2));
+}
+
+/* Extend Cargo's own site color to the root canvas used during rubber-banding.
+   No overscroll-behavior override, body fill replacement, or blend-mode changes. */
+html.dan-global-background {
+  background-color: var(--site-background-color, var(--dan-cargo-site-color));
+}
+html.dan-global-background[data-dan-pattern="dots"] {
+  background-image: var(--dan-pattern-image);
+  background-size: var(--DOT_SPACING) var(--DOT_SPACING);
+  background-position: 0 0;
+  background-attachment: fixed;
+}
+
+.dan-site-pattern, .dan-surface-pattern {
+  pointer-events: none;
+  background-image: var(--dan-pattern-image);
+  background-size: var(--DOT_SPACING) var(--DOT_SPACING);
+  background-position: 0 0;
+  background-attachment: fixed;
+  background-repeat: repeat;
+}
+/* Inserted before Cargo content, below its existing positioned page tree. */
+body > .dan-site-pattern {
   position: fixed;
   inset: 0;
-  z-index: -2;
-  pointer-events: none;
-  background-color: #e6e6e6;
+  z-index: 0;
 }
-.page > .dan-background-layer[data-grid="true"] {
-  background-image: radial-gradient(circle at center,
-    #bdbdbd 0 calc(var(--dan-grid-dot-size) / 2),
-    transparent calc(var(--dan-grid-dot-size) / 2));
-  background-size: var(--dan-grid-spacing) var(--dan-grid-spacing);
-  background-position: 0 0;
-  background-repeat: repeat;
+/* Existing page/content isolation puts negative children above their own paint
+   and behind their content. Native backgrounds/noise/wallpapers are untouched. */
+.page > .dan-surface-pattern, .page-content > .dan-surface-pattern {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: -2;
 }
