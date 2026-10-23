@@ -42,5 +42,6 @@ export const PARTICLE_MOBILE_MAX_WIDTH = 900;
 // Temporary BUG-001 navigation fallback; never changes native scroll physics.
 export const ENABLE_OVERSCROLL_BLEND_WORKAROUND = true;
 export const OVERSCROLL_BOUNDARY_TOLERANCE = 2;
-export const OVERSCROLL_SETTLE_DELAY = 200;
+export const OVERSCROLL_EXIT_DISTANCE = 20;
+export const OVERSCROLL_SETTLE_DELAY = 350;
 export const OVERSCROLL_FALLBACK_COLOR = '#111111';

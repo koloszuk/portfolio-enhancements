@@ -6,22 +6,25 @@ const config=readFileSync(new URL('../js/config.js',import.meta.url),'utf8').rep
 const source=readFileSync(new URL('../js/interactions/overscroll-blend.js',import.meta.url),'utf8')
   .replace(/import \{[\s\S]*?\} from '..\/config.js';/,'').replaceAll('export ','');
 function fixture({editor=false,enabled=true,previousColor=null}={}){
-  const classes=new Set(),values=new Map(),timers=new Map(),listeners=[];let next=0,now=0;
+  const classes=new Set(),values=new Map(),timers=new Map(),frames=new Map(),listeners=[];let next=0,now=0;
   const root={nodeType:1,scrollHeight:3000,classList:{add:v=>classes.add(v),remove:v=>classes.delete(v),contains:v=>classes.has(v)},
     style:{getPropertyValue:k=>values.get(k)||'',getPropertyPriority:()=>'',setProperty:(k,v)=>values.set(k,v),removeProperty:k=>values.delete(k)}};
   function target(){const node=new EventTarget(),original=node.addEventListener.bind(node);node.addEventListener=(name,fn,options)=>{listeners.push({name,options});original(name,fn,options);};return node;}
   const window=Object.assign(target(),{scrollY:0,innerHeight:800,top:{location:{pathname:editor?'/edit/page':'/'}}});
-  const body={nodeType:1};const document=Object.assign(target(),{documentElement:root,body,scrollingElement:root,hidden:false,querySelector:()=>null});
+  const navValues=new Map();const nav={style:{getPropertyValue:k=>navValues.get(k)||'',getPropertyPriority:()=>'',setProperty:(k,v)=>navValues.set(k,v),removeProperty:k=>navValues.delete(k)}};
+  const body={nodeType:1};const document=Object.assign(target(),{documentElement:root,body,scrollingElement:root,hidden:false,querySelector:()=>null,querySelectorAll:()=>[nav]});
   const context={window,document,location:{pathname:editor?'/edit/page':'/'},AbortController,
-    getComputedStyle:n=>({overflowY:n.overflowY||'visible',overscrollBehaviorY:n.overscrollBehaviorY||'auto'}),
+    getComputedStyle:n=>({overflowY:n.overflowY||'visible',overscrollBehaviorY:n.overscrollBehaviorY||'auto',transitionProperty:'all',transitionDuration:'120ms',transitionTimingFunction:'ease-out',transitionDelay:'0s'}),
+    requestAnimationFrame:cb=>{frames.set(++next,cb);return next;},cancelAnimationFrame:id=>frames.delete(id),
     setTimeout:(cb,ms)=>{timers.set(++next,{cb,due:now+ms});return next;},clearTimeout:id=>timers.delete(id)};
   vm.runInNewContext(config.replace('ENABLE_OVERSCROLL_BLEND_WORKAROUND = true',`ENABLE_OVERSCROLL_BLEND_WORKAROUND = ${enabled}`)+source+
-    '\nthis.mount=mountOverscrollBlendWorkaround;this.edge=overscrollEdge;',context);
+    '\nthis.mount=mountOverscrollBlendWorkaround;this.edge=overscrollEdge;this.motion=motionTransitions;',context);
   if(previousColor)values.set('--dan-overscroll-fallback-color',previousColor);
   const controller=context.mount();
   function emit(name,props={},on=window){const event=Object.assign(new Event(name),{composedPath:()=>[body,root],...props});on.dispatchEvent(event);return event;}
   function advance(ms){now+=ms;for(const [id,t] of [...timers])if(t.due<=now){timers.delete(id);t.cb();}}
-  return{root,body,window,document,controller,context,classes,values,timers,listeners,emit,advance,
+  function flush(){const batch=[...frames.values()];frames.clear();for(const cb of batch)cb();}
+  return{navValues,frames,flush,root,body,window,document,controller,context,classes,values,timers,listeners,emit,advance,
     wheel:(deltaY,props={})=>emit('wheel',{deltaY,deltaX:0,ctrlKey:false,...props})};
 }
 test('resting at either edge and ordinary scrolling never override blending',()=>{
@@ -38,20 +41,25 @@ test('outward intent at both boundaries activates, including elastic coordinates
     assert.equal(event.defaultPrevented,false);assert.equal(f.timers.size,1);
   }
 });
-test('inward intent and interior motion restore immediately; settle extends on boundary activity',()=>{
-  const f=fixture();f.wheel(-20);f.advance(150);f.wheel(-3);f.advance(150);
-  assert.equal(f.controller.active,true);f.advance(50);assert.equal(f.controller.active,false);
-  assert.equal(f.values.has('--dan-overscroll-fallback-color'),false);
-  f.wheel(-10);f.wheel(1);assert.equal(f.controller.active,false);
-  f.window.scrollY=2200;f.wheel(10);f.wheel(-1);assert.equal(f.controller.active,false);
-  f.window.scrollY=0;f.wheel(-10);f.window.scrollY=10;f.emit('scroll');assert.equal(f.controller.active,false);
-  f.window.scrollY=-10;f.wheel(-1);f.advance(190);f.emit('scroll');f.advance(190);
-  assert.equal(f.controller.active,true);f.advance(10);assert.equal(f.controller.active,false);
+test('hysteresis retains inward recoil at both edges, exiting only at 20px or 350ms quiet',()=>{
+  for(const [edgeY,outward,near,away] of [[0,-1,19,20],[2200,1,2181,2180]]){
+    const f=fixture();f.window.scrollY=edgeY;f.wheel(outward*10);
+    for(let i=0;i<30;i++){
+      f.advance(30);f.wheel(i%2?outward:-outward);
+      assert.equal(f.controller.active,true);
+    }
+    f.window.scrollY=near;f.emit('scroll');assert.equal(f.controller.active,true);
+    f.window.scrollY=away;f.emit('scroll');assert.equal(f.controller.active,false);
+    f.window.scrollY=edgeY;f.wheel(outward);f.advance(349);assert.equal(f.controller.active,true);
+    f.advance(1);assert.equal(f.controller.active,false);
+    f.emit('scroll');assert.equal(f.controller.active,false);
+  }
 });
 test('touch supports outward/inward intent without cancellation; pinch and horizontal wheel are ignored',()=>{
   const f=fixture();f.emit('touchstart',{touches:[{clientY:100}]});
   f.emit('touchmove',{touches:[{clientY:120}]});assert.equal(f.controller.active,true);
-  f.emit('touchmove',{touches:[{clientY:110}]});assert.equal(f.controller.active,false);
+  f.emit('touchmove',{touches:[{clientY:110}]});assert.equal(f.controller.active,true);
+  f.window.scrollY=20;f.emit('scroll');assert.equal(f.controller.active,false);
   f.wheel(-10,{ctrlKey:true});f.wheel(-2,{deltaX:20});assert.equal(f.controller.active,false);
   f.emit('touchmove',{touches:[{},{}]});assert.equal(f.controller.active,false);
 });
@@ -84,17 +92,41 @@ test('CSS changes only known navigation blending/colors and preserves unpainted 
   const css=readFileSync(new URL('../css/interactions/overscroll-blend.css',import.meta.url),'utf8');
   const rules=css.replace(/\/\*[\s\S]*?\*\//g,'').split('}').filter(r=>r.trim());
   for(const rule of rules){const selectors=rule.split('{')[0];
-    assert.match(selectors,/html\.dan-overscroll-blend/);assert.match(selectors,/#I0367072328/);assert.match(selectors,/#S2531296503/);
+    assert.match(selectors,/html\.dan-overscroll-(?:blend|transition-guard)/);assert.match(selectors,/#I0367072328/);assert.match(selectors,/#S2531296503/);
   }
   assert.match(css,/mix-blend-mode: normal !important/);
   assert.match(css,/fill: currentColor/);assert.match(css,/stroke: currentColor/);assert.match(css,/:not\(\[fill="none"\]\)/);
   assert.doesNotMatch(css,/(?:opacity|position|width|height|overflow|overscroll-behavior)\s*:/);
-  assert.doesNotMatch(source,/preventDefault|stopPropagation|requestAnimationFrame|setInterval/);
+  assert.doesNotMatch(source,/preventDefault|stopPropagation|setInterval/);
 });
 
 test('temporary color token restores its previous value without touching Cargo inline styles',()=>{
   const f=fixture({previousColor:'rgb(10, 20, 30)'});f.wheel(-10);
   assert.equal(f.values.get('--dan-overscroll-fallback-color'),'#111111');
-  f.advance(200);assert.equal(f.values.get('--dan-overscroll-fallback-color'),'rgb(10, 20, 30)');
+  f.advance(350);assert.equal(f.values.get('--dan-overscroll-fallback-color'),'rgb(10, 20, 30)');
   assert.equal(f.root.classList.contains('dan-overscroll-blend'),false);
+});
+
+test('paint transition guard covers entry and exit, preserves motion timing, and releases after two frames',()=>{
+  const f=fixture();f.wheel(-10);
+  assert.ok(f.classes.has('dan-overscroll-blend'));assert.ok(f.classes.has('dan-overscroll-transition-guard'));
+  const token=f.navValues.get('--dan-overscroll-motion-transition');
+  assert.match(token,/transform 120ms ease-out 0s/);assert.match(token,/font-size 120ms ease-out 0s/);
+  assert.doesNotMatch(token,/color|opacity|filter|mix-blend-mode/);
+  f.window.scrollY=20;f.emit('scroll');
+  assert.equal(f.controller.active,false);assert.ok(f.classes.has('dan-overscroll-transition-guard'));
+  f.flush();assert.ok(f.classes.has('dan-overscroll-transition-guard'));
+  f.flush();assert.equal(f.classes.has('dan-overscroll-transition-guard'),false);
+  assert.equal(f.navValues.size,0);assert.equal(f.frames.size,0);
+});
+test('reactivation cancels pending guard release; cleanup synchronously removes it',()=>{
+  const f=fixture();f.wheel(-10);f.advance(350);f.flush();
+  f.wheel(-10);f.flush();assert.ok(f.classes.has('dan-overscroll-transition-guard'));
+  assert.equal(f.frames.size,0);assert.equal(f.controller.active,true);
+  f.emit('blur');assert.equal(f.classes.size,0);assert.equal(f.navValues.size,0);assert.equal(f.frames.size,0);
+});
+test('explicit native transition lists retain their original duration/easing indices',()=>{
+  const f=fixture();const result=f.context.motion({transitionProperty:'color, transform, opacity, width, filter',
+    transitionDuration:'80ms, 300ms',transitionTimingFunction:'linear, cubic-bezier(0.22, 1, 0.36, 1)',transitionDelay:'0s, 10ms'});
+  assert.equal(result,'transform 300ms cubic-bezier(0.22, 1, 0.36, 1) 10ms, width 300ms cubic-bezier(0.22, 1, 0.36, 1) 10ms');
 });

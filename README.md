@@ -513,62 +513,72 @@ Header/Footer stacking and fast-scroll appearance still need manual visual check
 
 ### BUG-001 overscroll navigation workaround
 
-`js/interactions/overscroll-blend.js` now provides a focused mitigation rather
-than another background change. Configure it in `js/config.js`:
-`ENABLE_OVERSCROLL_BLEND_WORKAROUND = true`,
-`OVERSCROLL_BOUNDARY_TOLERANCE = 2` pixels,
-`OVERSCROLL_SETTLE_DELAY = 200` milliseconds, and
-`OVERSCROLL_FALLBACK_COLOR = '#111111'`. The fixed backplane experiment is off;
-its code and the global dot pattern remain intact.
+`js/interactions/overscroll-blend.js` provides a focused mitigation. Configure it
+in `js/config.js`: `ENABLE_OVERSCROLL_BLEND_WORKAROUND = true`,
+`OVERSCROLL_BOUNDARY_TOLERANCE = 2` pixels (entry),
+`OVERSCROLL_EXIT_DISTANCE = 20` pixels (exit), `OVERSCROLL_SETTLE_DELAY = 350`
+milliseconds, and `OVERSCROLL_FALLBACK_COLOR = '#111111'`. The fixed backplane
+experiment remains off; its code and the dot grid are unchanged.
 
-Passive wheel/trackpad input activates the state only when its vertical delta
-points outward within 2px of the document's actual top/bottom scroll limit.
-Boundary rest and scroll events alone never activate it. Single-finger touch
-uses finger-motion direction similarly; pinch and horizontal/zoom wheel gestures
-are ignored. Nested scrollable panels that consume the input are excluded.
-Iframe wheel/touch events do not propagate to the parent, so About Selfie keeps
-its own interactions. No event is cancelled, no scroll position is set, and there
-is no animation loop, new background layer, overflow or overscroll suppression.
+Passive wheel/trackpad input enters the state only when its vertical delta points
+outward within 2px of the document's actual top/bottom limit. Resting at an edge
+and scroll events alone never activate it. Once active, tiny inward deltas and
+recoil near that edge do not remove/re-add the state. It exits once actual scroll
+position is at least 20px inside the document, or after 350ms without qualifying
+boundary activity. Observable bounce/scroll events extend the timer. Single-finger
+touch follows the same rules; pinch and horizontal/zoom wheel are ignored. Nested
+scrollable panels consuming input are excluded. Iframe events do not propagate
+to this document, preserving About Selfie. No event is cancelled, scroll position
+changed, new layer created, or native elastic behavior suppressed.
 
-While `html.dan-overscroll-blend` is present,
-`css/interactions/overscroll-blend.css` overrides only Cargo pages I0367072328
-(Header) and S2531296503 (Footer), plus their direct `.page-layout` containers,
-to `mix-blend-mode: normal`. Cargo's base CSS exposes blend modes on `.page` and
-`.page-layout`. Text and links in just those pages receive the configured dark
-color. Cargo text-icons inherit color; ordinary monochrome SVG paint switches to
-currentColor, preserving explicit none/transparent fills/strokes and URL paint
-servers. No navigation dimensions, opacity, positioning, hit areas or inline
-Cargo styles are rewritten. Unrelated Difference effects and particles keep
-their own blending. Exotic shadow icons or inline SVG paint may need a visual
-check; local tests validate selector scope and paint rules, not rendering.
+One root class, `dan-overscroll-blend`, applies normal blending and dark text/icon
+paint together, only under Header I0367072328 and Footer S2531296503. Their Cargo
+`.page` and direct `.page-layout` containers get `mix-blend-mode: normal`.
+Monochrome SVG paint follows currentColor while explicit none/transparent fills,
+strokes and URL paint servers are preserved. Removing the root state restores
+Cargo's normal Difference cascade. No copies, crossfades, opacity changes,
+font-weight/antialias overrides or layout edits are introduced.
 
-Inward input restores normal blending immediately. Otherwise the state clears
-200ms after the last qualifying wheel/touch or observable boundary-scroll
-activity. Scroll bounce events extend the timer where browsers expose them.
-Blur, page hide/show, hash/popstate navigation, link clicks, resizing, hidden
-visibility and destruction clear it. Removing the class restores Cargo's exact
-original style cascade and restores/removes our temporary color token. Standard
-Cargo link navigation is covered; arbitrary third-party pushState calls without
-link/hash/popstate events still rely on the short settle timeout.
+Blink polish: before entry, read the existing navigation nodes' computed CSS
+transitions. A temporary `--dan-overscroll-motion-transition` token preserves
+explicit non-paint transitions with their original duration/easing/delay indices.
+For `transition: all`, it expands to geometry/motion/typography properties used
+for resizing/shrinking, excluding color/fill/stroke, opacity, filters and blend.
+A separately scoped `dan-overscroll-transition-guard` only filters transitions;
+it never changes blend mode or paint values. It is active before the paint-state
+switch and remains through two animation frames after restoration, preventing
+native color transitions on both entry and exit. These are two finite callbacks,
+not a continuous loop. Reactivation cancels pending release. Afterwards all owned
+node tokens and native transition rules are restored. Native keyframe animations
+and layout transition values/timings remain untouched; visual Header shrinking
+still requires a manual check.
 
-This is **overscroll intent detection, not proof of actual rubber-band motion**.
-Chrome may keep scrollY clamped and emit no bounce progress; no event-only method
-can know the compositor's exact settling time. Non-elastic browsers can also
-trigger the brief fallback on outward intent. Tune the settle delay if the
-native bounce outlasts 200ms. Reduced-motion does not disable this color/blend
-workaround (it introduces no movement); the Cargo editor never mounts it.
-
-Set the configuration flag false and redeploy to disable just this module.
-For an immediate temporary manual switch on an already loaded site:
+Blur, hide/show, hash/popstate navigation, link clicks, resize, hidden visibility,
+disabling and destruction clear blend state and transition tokens immediately.
+Standard Cargo links are covered; arbitrary third-party pushState calls with no
+link/hash/popstate events still rely on the settle timeout. Cargo's editor never
+mounts this module. No other Difference elements or foreground particles are
+changed. Runtime toggle:
 
 ```js
 window.danPortfolio.overscrollBlend.setEnabled(false);
 ```
 
-Pass true to restore it when the module was enabled at initialization. The
-controller's `active` getter reports state. Local tests cover boundary rest,
-normal/inward/outward input, both edges, timers, touch, nested panels, navigation,
-focus, editor/config exclusion, scoped SVG/color rules and cleanup. Manually
-verify actual elasticity, no mid-bounce restoration, readable Header/Footer
-icons, normal Difference over images, and ordinary routes on Home/About/projects.
-BUG-001 is not considered resolved until the user confirms the live behavior.
+Pass true to re-enable a mounted controller, or set the configuration flag false
+and redeploy for a durable disable. The `active` getter reports blend state.
+
+Tests cover boundary rest, outward entry, recoil hysteresis, alternating deltas,
+real inward displacement, quiet expiry, touch, nested panels, cleanup, transition
+filtering/index preservation, two-frame release and reactivation. The confirmed
+source-level chatter cause was immediate restoration on any inward delta. Native
+Cargo color/opacity/filter transitions are a plausible additional contributor,
+not proven from source inspection. The module does not duplicate navigation.
+
+This measures **overscroll intent**, not the compositor's elastic progress.
+Chrome can clamp scrollY and emit no bounce updates. A 350ms quiet delay is a
+configurable heuristic; non-elastic browsers can also briefly enter the fallback.
+CSS transition suppression cannot guarantee eliminating a one-frame compositor
+flash when mix-blend-mode changes. Manually inspect both bounce directions,
+black/dark paint consistency, SVG icons, native Header shrink, normal Difference
+over images and ordinary hover/navigation on Home/About/projects. BUG-001 and the
+blink are not considered visually resolved until the user confirms live results.

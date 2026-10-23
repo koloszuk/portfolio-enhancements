@@ -1,5 +1,11 @@
 /* Only these pinned Cargo pages participate; removing the root class restores
    Cargo's original rules/inline values without saving or rewriting them. */
+html.dan-overscroll-transition-guard :is(.page#I0367072328, .page#S2531296503),
+html.dan-overscroll-transition-guard :is(.page#I0367072328, .page#S2531296503) * {
+  /* Captured native motion/layout transitions retain their individual timings.
+     Guard persists through restoration so removing the blend class cannot fade. */
+  transition: var(--dan-overscroll-motion-transition, none) !important;
+}
 html.dan-overscroll-blend :is(.page#I0367072328, .page#S2531296503),
 html.dan-overscroll-blend :is(.page#I0367072328, .page#S2531296503) > .page-layout {
   mix-blend-mode: normal !important;
