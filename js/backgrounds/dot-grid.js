@@ -50,20 +50,33 @@ export function mountGlobalBackground() {
     const canvasColor = source === 'body' ? color : source === 'site' ? siteColor : '';
     const mirrorCanvas = !rootOpaque && !!source;
     if (!root.classList.contains('dan-global-background')) root.classList.add('dan-global-background');
-    if (root.style.getPropertyValue('--dan-cargo-site-color') !== canvasColor) {
-      if (canvasColor) root.style.setProperty('--dan-cargo-site-color', canvasColor);
+    const settings = getComputedStyle(root);
+    const experiment = ['1', 'true'].includes(settings.getPropertyValue('--ENABLE_FIXED_BACKPLANE_EXPERIMENT').trim());
+    // A solid layer would cover native body/root wallpaper. Keep it transparent
+    // in that case rather than replacing images or adding another workaround.
+    const backplaneSource = isOpaqueBackground(color) ? 'body' : rootOpaque ? 'native-root' : source || 'transparent';
+    const backplaneColor = noImages ? (isOpaqueBackground(color) ? color : rootOpaque ? rootColor : canvasColor || color) : 'transparent';
+    const paintColor = experiment ? backplaneColor : canvasColor;
+    if (root.style.getPropertyValue('--dan-cargo-site-color') !== paintColor) {
+      if (paintColor) root.style.setProperty('--dan-cargo-site-color', paintColor);
       else root.style.removeProperty('--dan-cargo-site-color');
     }
-    const settings = getComputedStyle(root);
     const enabled = ['1', 'true'].includes(settings.getPropertyValue('--ENABLE_BACKGROUND_PATTERN').trim());
     const type = settings.getPropertyValue('--PATTERN_TYPE').trim();
     const pattern = enabled && type === 'dots' ? 'dots' : 'none';
     if (root.getAttribute('data-dan-pattern') !== pattern) root.setAttribute('data-dan-pattern', pattern);
-    if (mirrorCanvas) root.setAttribute('data-dan-canvas-color', source);
-    if (pattern === 'dots' && noImages && (rootOpaque || mirrorCanvas)) root.setAttribute('data-dan-canvas-pattern', 'dots');
+    const mode = experiment ? 'backplane' : 'canvas';
+    if (root.getAttribute('data-dan-background-mode') !== mode) root.setAttribute('data-dan-background-mode', mode);
+    // Mutually exclusive experiments: no root color/image additions underneath
+    // the backplane. Disabling it restores the previous behavior for comparison.
+    if (!experiment && mirrorCanvas) root.setAttribute('data-dan-canvas-color', source);
+    if (!experiment && pattern === 'dots' && noImages && (rootOpaque || mirrorCanvas)) root.setAttribute('data-dan-canvas-pattern', 'dots');
     canvasState = { nativeRootColor: rootColor, bodyColor: color, siteColor,
-      rootImage, bodyImage, source: rootOpaque ? 'native-root' : source || 'unavailable' };
-    const surfaces = new Set(pattern === 'dots' ? [document.body] : []);
+      rootImage, bodyImage, source: rootOpaque ? 'native-root' : source || 'unavailable',
+      mode, backplaneColor: experiment ? backplaneColor : null,
+      backplaneSource: experiment ? (noImages ? backplaneSource : 'native-image-preserved') : null,
+      backplaneOpaque: experiment && isOpaqueBackground(backplaneColor) };
+    const surfaces = new Set(pattern === 'dots' || experiment ? [document.body] : []);
     const watched = [root, document.body];
     for (const page of document.querySelectorAll('.page')) {
       // Never paint the transparent Difference-blended pinned Header/Footer.
@@ -114,6 +127,7 @@ export function mountGlobalBackground() {
     root.removeAttribute('data-dan-pattern');
     root.removeAttribute('data-dan-canvas-color');
     root.removeAttribute('data-dan-canvas-pattern');
+    root.removeAttribute('data-dan-background-mode');
     if (previousColor) root.style.setProperty('--dan-cargo-site-color', previousColor, previousPriority);
     else root.style.removeProperty('--dan-cargo-site-color');
   }

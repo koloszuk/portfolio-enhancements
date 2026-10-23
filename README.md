@@ -325,8 +325,8 @@ and `--DOT_OPACITY: 1`. To replace the pattern later, change
 
 Cargo remains the background color editor: change Site Background in Cargo's
 Site Settings, or Page Background / Content Background in the relevant page's
-settings, and publish. External code supplies no solid color. An opaque native
-HTML background is left alone. Otherwise an opaque computed body color is
+settings, and publish. External code supplies no hardcoded solid color. In the baseline canvas mode
+(experiment flag 0), an opaque native HTML background is left alone. Otherwise an opaque computed body color is
 mirrored to the canvas; if the body is transparent/translucent, Cargo's own
 `--site-background-color` is the fallback. Cargo's frontend publishes that
 variable for opaque site colors. The actual body color takes priority over a
@@ -363,29 +363,51 @@ Native root paint is sampled synchronously with our optional canvas attributes
 removed, without displaying an intermediate frame. Existing event-driven content,
 stylesheet, attribute and resize notifications keep values current.
 
-BUG-001 remains pending manual visual confirmation. Commit 27f01c4 did not
-guarantee an opaque root: mirroring required an opaque body, fully transparent
-root and no images on either element. The current correction removes the image
-veto for **color only**, supports Cargo's opaque site-color fallback, and backs
-a non-opaque root with that known Cargo color. The dot rendering is unchanged.
-The observed grey-page/white-navigation overscroll can also be a compositor or
-Cargo blend-group issue. Source inspection cannot establish which branch was
-active on the published page. No speculative isolation/GPU/transform patches
-are applied to Cargo's fixed, isolated Difference-blended pages.
+BUG-001 remains pending manual visual confirmation. Root color/canvas pattern
+attempts did not resolve the user's observed Difference failure. They remain
+available as the baseline for comparison, not stacked beneath the new experiment.
 
-For an optional manual check, `window.danPortfolio.background.canvas` reports
-native root/body colors, Cargo site color, background images, chosen source,
-current computed root color and `rootOpaque`. This getter measures on demand;
-there is no polling. If `rootOpaque` is true while navigation still turns white,
-root opacity alone is insufficient and browser compositor investigation is
-needed. Computed opacity is not proof of a usable GPU blend backdrop.
+The controlled experiment is enabled by one CSS flag in
+`css/backgrounds/dot-grid.css`: `--ENABLE_FIXED_BACKPLANE_EXPERIMENT: 1`.
+It reuses the **existing** fixed `body > .dan-site-pattern` as a color backplane
+(z-index 0, prepended before Cargo's positioned content tree), retaining its dots.
+Both external canvas color and canvas dot attributes are suspended. Cargo pages
+paint after this layer, and pinned navigation remains at Cargo's native higher
+z-index. The backplane is a sibling underneath the content, never an opaque
+separator between project images and navigation. No content ancestor, isolation,
+transform, containment or blend-mode rule is introduced. Page-local dot layers
+are unchanged and remain transparent. Disabling dots still leaves the backplane.
 
-Native macOS rubber-band scrolling stays enabled. Tests cover source selection,
-opaque/native guards, images, lifecycle and editor exclusion, not compositing.
-Manually test Home, About and project/future pages at both scroll limits, pinned
-Header/Footer inversion, normal appearance and any wallpapers. Dots may still
-clip/shift and intentional page colors may differ from the site canvas. Do not
-address these limitations by suppressing elasticity or simulating scrolling.
+Color selection uses the opaque computed Cargo body color first, then an opaque
+native root color, then Cargo's opaque site variable. If all those are transparent,
+the selected Cargo body color remains transparent; no white/grey is fabricated.
+If native root/body background images exist, solid backplane paint is suspended
+to avoid covering wallpaper. No additional workaround is activated in that case.
+The overlay is site-wide, survives navigation, is pointer-inert, and stays out of
+the editor. Existing event-driven notifications update it without scroll polling.
+
+For an immediate manual A/B switch, run this in the site's console:
+
+```js
+document.documentElement.style.setProperty('--ENABLE_FIXED_BACKPLANE_EXPERIMENT', '0');
+```
+
+Set it to `'1'` to re-enable. The existing attribute observer applies the switch
+on the next frame. This inline override lasts until reload; edit the CSS flag and
+redeploy for a durable change. Flag 0 removes the backplane color and restores
+the previous canvas approach, reusing the same dot node. No Cargo HTML edits.
+
+`window.danPortfolio.background.canvas` reports `mode`, `backplaneColor`,
+`backplaneSource`, `backplaneOpaque`, native root/body values and current computed
+root opacity. In backplane mode, a transparent root is expected: the experimental
+paint lives in the fixed element. These diagnostics measure CSS, not the GPU's
+blend backdrop. Manual testing must confirm ordinary Difference inversion over
+project images and both scroll limits on Home/About/projects. Use an opaque
+Cargo Site Background to test an opaque backplane; fully transparent settings
+cannot supply one. Compare flag 1/0 at the same scroll position, watching pinned
+Header/Footer, dots, and native rubber-banding. CSS layer feasibility and lifecycle
+have local tests; browser compositing and BUG-001 resolution are **not verified**.
+Native elasticity must remain enabled. No overscroll suppression fallback exists.
 
 Scroll reveals are temporarily disabled with `ENABLE_SCROLL_REVEAL = false` in
 `js/main.js` while Cargo handles thumbnail movement. Set it to

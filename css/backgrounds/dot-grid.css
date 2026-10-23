@@ -1,5 +1,6 @@
 /* Pattern controls. Cargo remains the sole source of every solid background. */
 :root {
+  --ENABLE_FIXED_BACKPLANE_EXPERIMENT: 1; /* 0 restores the previous canvas approach */
   --ENABLE_BACKGROUND_PATTERN: 1;
   --PATTERN_TYPE: dots; /* dots or none; replace --dan-pattern-image for future art */
   --DOT_SIZE: 2px;
@@ -39,6 +40,14 @@ body > .dan-site-pattern {
   position: fixed;
   inset: 0;
   z-index: 0;
+}
+/* Reuse the existing fixed pattern surface below Cargo's positioned content.
+   No isolation or ancestor wrapping: navigation still blends with page images. */
+html[data-dan-background-mode="backplane"] body > .dan-site-pattern {
+  background-color: var(--dan-cargo-site-color);
+}
+html[data-dan-pattern="none"] body > .dan-site-pattern {
+  background-image: none;
 }
 /* Existing page/content isolation puts negative children above their own paint
    and behind their content. Native backgrounds/noise/wallpapers are untouched. */
