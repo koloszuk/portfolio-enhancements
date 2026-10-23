@@ -1,6 +1,6 @@
 /* Pattern controls. Cargo remains the sole source of every solid background. */
 :root {
-  --ENABLE_FIXED_BACKPLANE_EXPERIMENT: 1; /* 0 restores the previous canvas approach */
+  --ENABLE_FIXED_BACKPLANE_EXPERIMENT: 0; /* retained for comparison, disabled by default */
   --ENABLE_BACKGROUND_PATTERN: 1;
   --PATTERN_TYPE: dots; /* dots or none; replace --dan-pattern-image for future art */
   --DOT_SIZE: 2px;

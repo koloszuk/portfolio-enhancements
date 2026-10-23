@@ -1,0 +1,21 @@
+/* Only these pinned Cargo pages participate; removing the root class restores
+   Cargo's original rules/inline values without saving or rewriting them. */
+html.dan-overscroll-blend :is(.page#I0367072328, .page#S2531296503),
+html.dan-overscroll-blend :is(.page#I0367072328, .page#S2531296503) > .page-layout {
+  mix-blend-mode: normal !important;
+}
+html.dan-overscroll-blend :is(.page#I0367072328, .page#S2531296503),
+html.dan-overscroll-blend :is(.page#I0367072328, .page#S2531296503) * {
+  color: var(--dan-overscroll-fallback-color) !important;
+}
+/* currentColor covers Cargo text-icon glyphs and ordinary monochrome SVGs.
+   Preserve explicit no-fill/no-stroke and URL paint servers/transparent shapes. */
+html.dan-overscroll-blend :is(.page#I0367072328, .page#S2531296503) svg:not([fill="none"]):not([fill="transparent"]):not([fill^="url("]) {
+  fill: currentColor;
+}
+html.dan-overscroll-blend :is(.page#I0367072328, .page#S2531296503) svg [fill]:not([fill="none"]):not([fill="transparent"]):not([fill^="url("]) {
+  fill: currentColor !important;
+}
+html.dan-overscroll-blend :is(.page#I0367072328, .page#S2531296503) :is(svg[stroke], svg [stroke]):not([stroke="none"]):not([stroke="transparent"]):not([stroke^="url("]) {
+  stroke: currentColor !important;
+}

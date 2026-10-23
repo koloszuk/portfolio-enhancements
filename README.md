@@ -367,8 +367,9 @@ BUG-001 remains pending manual visual confirmation. Root color/canvas pattern
 attempts did not resolve the user's observed Difference failure. They remain
 available as the baseline for comparison, not stacked beneath the new experiment.
 
-The controlled experiment is enabled by one CSS flag in
-`css/backgrounds/dot-grid.css`: `--ENABLE_FIXED_BACKPLANE_EXPERIMENT: 1`.
+The earlier controlled experiment is now **disabled by default**, retained under
+`css/backgrounds/dot-grid.css`: `--ENABLE_FIXED_BACKPLANE_EXPERIMENT: 0`.
+The following describes its behavior if manually re-enabled.
 It reuses the **existing** fixed `body > .dan-site-pattern` as a color backplane
 (z-index 0, prepended before Cargo's positioned content tree), retaining its dots.
 Both external canvas color and canvas dot attributes are suspended. Cargo pages
@@ -508,3 +509,66 @@ nested transform ownership, no idle translation, seeded X/depth changes, depth
 bands, both scroll directions, offscreen-only updates, animation gating, timers,
 preference controls and lifecycle. Browser interpolation, Difference inversion,
 Header/Footer stacking and fast-scroll appearance still need manual visual checks.
+
+
+### BUG-001 overscroll navigation workaround
+
+`js/interactions/overscroll-blend.js` now provides a focused mitigation rather
+than another background change. Configure it in `js/config.js`:
+`ENABLE_OVERSCROLL_BLEND_WORKAROUND = true`,
+`OVERSCROLL_BOUNDARY_TOLERANCE = 2` pixels,
+`OVERSCROLL_SETTLE_DELAY = 200` milliseconds, and
+`OVERSCROLL_FALLBACK_COLOR = '#111111'`. The fixed backplane experiment is off;
+its code and the global dot pattern remain intact.
+
+Passive wheel/trackpad input activates the state only when its vertical delta
+points outward within 2px of the document's actual top/bottom scroll limit.
+Boundary rest and scroll events alone never activate it. Single-finger touch
+uses finger-motion direction similarly; pinch and horizontal/zoom wheel gestures
+are ignored. Nested scrollable panels that consume the input are excluded.
+Iframe wheel/touch events do not propagate to the parent, so About Selfie keeps
+its own interactions. No event is cancelled, no scroll position is set, and there
+is no animation loop, new background layer, overflow or overscroll suppression.
+
+While `html.dan-overscroll-blend` is present,
+`css/interactions/overscroll-blend.css` overrides only Cargo pages I0367072328
+(Header) and S2531296503 (Footer), plus their direct `.page-layout` containers,
+to `mix-blend-mode: normal`. Cargo's base CSS exposes blend modes on `.page` and
+`.page-layout`. Text and links in just those pages receive the configured dark
+color. Cargo text-icons inherit color; ordinary monochrome SVG paint switches to
+currentColor, preserving explicit none/transparent fills/strokes and URL paint
+servers. No navigation dimensions, opacity, positioning, hit areas or inline
+Cargo styles are rewritten. Unrelated Difference effects and particles keep
+their own blending. Exotic shadow icons or inline SVG paint may need a visual
+check; local tests validate selector scope and paint rules, not rendering.
+
+Inward input restores normal blending immediately. Otherwise the state clears
+200ms after the last qualifying wheel/touch or observable boundary-scroll
+activity. Scroll bounce events extend the timer where browsers expose them.
+Blur, page hide/show, hash/popstate navigation, link clicks, resizing, hidden
+visibility and destruction clear it. Removing the class restores Cargo's exact
+original style cascade and restores/removes our temporary color token. Standard
+Cargo link navigation is covered; arbitrary third-party pushState calls without
+link/hash/popstate events still rely on the short settle timeout.
+
+This is **overscroll intent detection, not proof of actual rubber-band motion**.
+Chrome may keep scrollY clamped and emit no bounce progress; no event-only method
+can know the compositor's exact settling time. Non-elastic browsers can also
+trigger the brief fallback on outward intent. Tune the settle delay if the
+native bounce outlasts 200ms. Reduced-motion does not disable this color/blend
+workaround (it introduces no movement); the Cargo editor never mounts it.
+
+Set the configuration flag false and redeploy to disable just this module.
+For an immediate temporary manual switch on an already loaded site:
+
+```js
+window.danPortfolio.overscrollBlend.setEnabled(false);
+```
+
+Pass true to restore it when the module was enabled at initialization. The
+controller's `active` getter reports state. Local tests cover boundary rest,
+normal/inward/outward input, both edges, timers, touch, nested panels, navigation,
+focus, editor/config exclusion, scoped SVG/color rules and cleanup. Manually
+verify actual elasticity, no mid-bounce restoration, readable Header/Footer
+icons, normal Difference over images, and ordinary routes on Home/About/projects.
+BUG-001 is not considered resolved until the user confirms the live behavior.

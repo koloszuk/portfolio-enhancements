@@ -173,7 +173,7 @@ test('experiment never covers native root/body wallpaper with a solid color',()=
 });
 test('experiment CSS adds only color below content, with no isolation, input or scroll control',()=>{
   const css=readFileSync(new URL('../css/backgrounds/dot-grid.css',import.meta.url),'utf8');
-  assert.match(css,/--ENABLE_FIXED_BACKPLANE_EXPERIMENT:\s*1/);
+  assert.match(css,/--ENABLE_FIXED_BACKPLANE_EXPERIMENT:\s*0/);
   const backplane=css.match(/html\[data-dan-background-mode="backplane"\] body > \.dan-site-pattern\s*\{([^}]+)\}/)[1];
   assert.match(backplane,/background-color:\s*var\(--dan-cargo-site-color\)/);
   const layer=css.match(/body > \.dan-site-pattern\s*\{([^}]+)\}/)[1];

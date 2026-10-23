@@ -38,3 +38,9 @@ export const PARTICLE_BLEND_MODE = 'difference';
 export const PARTICLE_SEED = 2026;
 export const ENABLE_PARTICLES_ON_MOBILE = true;
 export const PARTICLE_MOBILE_MAX_WIDTH = 900;
+
+// Temporary BUG-001 navigation fallback; never changes native scroll physics.
+export const ENABLE_OVERSCROLL_BLEND_WORKAROUND = true;
+export const OVERSCROLL_BOUNDARY_TOLERANCE = 2;
+export const OVERSCROLL_SETTLE_DELAY = 200;
+export const OVERSCROLL_FALLBACK_COLOR = '#111111';

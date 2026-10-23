@@ -5,6 +5,7 @@ import { projects } from './projects.js';
 import { mountProjectHovers } from './interactions/project-hover.js';
 import { mountScrollReveals } from './interactions/scroll-reveal.js';
 import { mountForegroundParticles } from './foreground/particles.js';
+import { mountOverscrollBlendWorkaround } from './interactions/overscroll-blend.js';
 
 // Set true to restore the existing directional fade/slide reveals.
 const ENABLE_SCROLL_REVEAL = false;
@@ -15,12 +16,14 @@ window.danPortfolio?.background?.destroy();
 window.danPortfolio?.lines?.destroy();
 window.danPortfolio?.scale?.destroy();
 window.danPortfolio?.foreground?.destroy();
+window.danPortfolio?.overscrollBlend?.destroy();
 const scale = mountProjectScale();
 const lines = mountAnchoredLines();
 const background = mountGlobalBackground();
 const hover = mountProjectHovers(projects);
 const reveals = ENABLE_SCROLL_REVEAL ? mountScrollReveals() : null;
 const foreground = mountForegroundParticles();
+const overscrollBlend = mountOverscrollBlendWorkaround();
 window.danPortfolio = {
   ...window.danPortfolio,
   state: 'ready',
@@ -33,5 +36,6 @@ window.danPortfolio = {
   lines,
   scale,
   foreground,
+  overscrollBlend,
 };
 console.info('[Portfolio] Project interactions ready', window.danPortfolio.release);
