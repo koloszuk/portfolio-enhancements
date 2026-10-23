@@ -5,9 +5,9 @@ import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../js/backgrounds/dot-grid.js',import.meta.url),'utf8').replaceAll('export ','');
 function fixture({editor=false}={}) {
   const frames=new Map(), observers=[];let next=0;
-  function node({color='rgba(0, 0, 0, 0)',pinned=false}={}) {
+  function node({color='rgba(0, 0, 0, 0)',image='none',pinned=false}={}) {
     const values=new Map(),attrs=new Map(),classes=new Set();
-    return {color,isConnected:true,children:[],pinned,
+    return {color,image,isConnected:true,children:[],pinned,
       style:{getPropertyValue:k=>values.get(k)||'',getPropertyPriority:()=>'',setProperty:(k,v)=>values.set(k,v),removeProperty:k=>values.delete(k)},
       classList:{contains:k=>classes.has(k),add:k=>classes.add(k),remove:k=>classes.delete(k)},
       getAttribute:k=>attrs.get(k)??null,setAttribute:(k,v)=>attrs.set(k,v),removeAttribute:k=>attrs.delete(k),
@@ -24,7 +24,7 @@ function fixture({editor=false}={}) {
   const document=Object.assign(new EventTarget(),{documentElement:root,body,querySelector:()=>null,
     querySelectorAll:()=>pages,createElement:()=>node()});
   const context={window,document,location:{pathname:editor?'/edit/home':'/'},
-    getComputedStyle:n=>({backgroundColor:n.color,getPropertyValue:k=>k==='--ENABLE_BACKGROUND_PATTERN'?enabled:k==='--PATTERN_TYPE'?'dots':''}),
+    getComputedStyle:n=>({backgroundColor:n.color,backgroundImage:n.image,getPropertyValue:k=>k==='--ENABLE_BACKGROUND_PATTERN'?enabled:k==='--PATTERN_TYPE'?'dots':''}),
     MutationObserver:class{constructor(cb){this.cb=cb;observers.push(this);}observe(){}disconnect(){}},
     requestAnimationFrame:cb=>{frames.set(++next,cb);return next;},cancelAnimationFrame:id=>frames.delete(id),
   };
@@ -65,4 +65,49 @@ test('only opaque surfaces need a local pattern above their own paint',()=>{
   const f=fixture();
   for(const color of ['transparent','rgba(0, 0, 0, 0)','rgb(0 0 0 / .5)','color(srgb 0 0 0 / 50%)'])assert.equal(f.context.opaque(color),false);
   for(const color of ['rgb(1, 2, 3)','rgba(1, 2, 3, 1)','rgb(1 2 3 / 100%)'])assert.equal(f.context.opaque(color),true);
+});
+test('unpainted root uses actual Cargo body color, including updates and pattern-off mode',()=>{
+  const f=fixture();f.flush();
+  assert.equal(f.root.getAttribute('data-dan-canvas-color'),'body');
+  assert.equal(f.root.getAttribute('data-dan-canvas-pattern'),'dots');
+  f.body.color='rgb(32, 48, 64)';f.rescan();
+  assert.equal(f.root.style.getPropertyValue('--dan-cargo-site-color'),f.body.color);
+  f.setEnabled('0');f.rescan();
+  assert.equal(f.root.getAttribute('data-dan-canvas-color'),'body');
+  assert.equal(f.root.getAttribute('data-dan-canvas-pattern'),null);
+});
+test('Cargo native root colors and images are never replaced',()=>{
+  const f=fixture();f.root.color='rgb(20, 30, 40)';f.flush();
+  assert.equal(f.root.getAttribute('data-dan-canvas-color'),null);
+  assert.equal(f.root.getAttribute('data-dan-canvas-pattern'),'dots');
+  f.root.image='linear-gradient(red, blue)';f.rescan();
+  assert.equal(f.root.getAttribute('data-dan-canvas-color'),null);
+  assert.equal(f.root.getAttribute('data-dan-canvas-pattern'),null);
+  assert.equal(f.root.image,'linear-gradient(red, blue)');
+  assert.equal(f.root.style.getPropertyValue('background-image'),'');
+});
+test('body images/translucency retain native propagation; explicit translucent root is respected',()=>{
+  const f=fixture();f.body.image='url("cargo-wallpaper.jpg")';f.flush();
+  assert.equal(f.root.getAttribute('data-dan-canvas-color'),null);
+  assert.equal(f.root.getAttribute('data-dan-canvas-pattern'),null);
+  f.body.image='none';f.body.color='rgba(30, 40, 50, 0.5)';f.rescan();
+  assert.equal(f.root.getAttribute('data-dan-canvas-color'),null);
+  assert.equal(f.root.getAttribute('data-dan-canvas-pattern'),null);
+  f.body.color='rgb(30, 40, 50)';f.root.color='rgba(10, 20, 30, 0.2)';f.rescan();
+  assert.equal(f.root.getAttribute('data-dan-canvas-color'),null);
+  f.root.color='color(srgb 0 0 0 / 0)';f.rescan();
+  assert.equal(f.root.getAttribute('data-dan-canvas-color'),'body');
+  f.instance.destroy();
+  assert.equal(f.root.getAttribute('data-dan-canvas-color'),null);
+  assert.equal(f.root.getAttribute('data-dan-canvas-pattern'),null);
+});
+test('canvas dots are scroll-painted, normal dots stay fixed, and CSS never suppresses rubber-banding',()=>{
+  const css=readFileSync(new URL('../css/backgrounds/dot-grid.css',import.meta.url),'utf8');
+  const canvas=css.match(/html\.dan-global-background\[data-dan-canvas-pattern="dots"\]\s*\{([^}]+)\}/)[1];
+  assert.match(canvas,/background-attachment:\s*scroll/);
+  assert.match(canvas,/background-repeat:\s*repeat/);
+  assert.match(css,/\.dan-site-pattern, \.dan-surface-pattern\s*\{[^}]*background-attachment:\s*fixed/s);
+  assert.doesNotMatch(css,/overscroll-behavior[^:]*:\s*(?:none|contain)/);
+  assert.doesNotMatch(css,/background-color:\s*#/);
+  assert.doesNotMatch(source,/setInterval|addEventListener\('(?:scroll|wheel|touchmove)'/);
 });

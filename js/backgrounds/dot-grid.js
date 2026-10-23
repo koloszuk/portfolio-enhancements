@@ -27,10 +27,24 @@ export function mountGlobalBackground() {
     if (stopped) return;
     if (isEditor()) { destroy(); return; }
     if (!document.body) return;
+    attributes.disconnect();
+    // Read Cargo's native root paint without our optional canvas additions.
+    // Removing these attributes synchronously does not introduce a painted frame.
+    root.removeAttribute('data-dan-canvas-color');
+    root.removeAttribute('data-dan-canvas-pattern');
+    const nativeRoot = getComputedStyle(root);
+    const rootColor = nativeRoot.backgroundColor;
+    const rootImage = nativeRoot.backgroundImage;
+    const bodyStyle = getComputedStyle(document.body);
+    const color = bodyStyle.backgroundColor;
+    const bodyImage = bodyStyle.backgroundImage;
+    const noImages = rootImage === 'none' && bodyImage === 'none';
+    const rootOpaque = isOpaqueBackground(rootColor);
+    // An explicit root paint belongs to Cargo. Body images/translucency may
+    // propagate to the canvas, so leave that native propagation intact as well.
+    const rootTransparent = rootColor === 'transparent' || /(?:,|\/)\s*0(?:\.0+)?%?\s*\)$/.test(rootColor);
+    const mirrorBody = !rootOpaque && rootTransparent && isOpaqueBackground(color) && noImages;
     if (!root.classList.contains('dan-global-background')) root.classList.add('dan-global-background');
-    // Cargo normally exposes --site-background-color. Computed body color is the
-    // fallback for older Cargo builds or non-opaque site colors, never a new color.
-    const color = getComputedStyle(document.body).backgroundColor;
     if (root.style.getPropertyValue('--dan-cargo-site-color') !== color) {
       root.style.setProperty('--dan-cargo-site-color', color);
     }
@@ -39,6 +53,8 @@ export function mountGlobalBackground() {
     const type = settings.getPropertyValue('--PATTERN_TYPE').trim();
     const pattern = enabled && type === 'dots' ? 'dots' : 'none';
     if (root.getAttribute('data-dan-pattern') !== pattern) root.setAttribute('data-dan-pattern', pattern);
+    if (mirrorBody) root.setAttribute('data-dan-canvas-color', 'body');
+    if (pattern === 'dots' && noImages && (rootOpaque || mirrorBody)) root.setAttribute('data-dan-canvas-pattern', 'dots');
     const surfaces = new Set(pattern === 'dots' ? [document.body] : []);
     const watched = [root, document.body];
     for (const page of document.querySelectorAll('.page')) {
@@ -88,6 +104,8 @@ export function mountGlobalBackground() {
     layers.clear();
     root.classList.remove('dan-global-background');
     root.removeAttribute('data-dan-pattern');
+    root.removeAttribute('data-dan-canvas-color');
+    root.removeAttribute('data-dan-canvas-pattern');
     if (previousColor) root.style.setProperty('--dan-cargo-site-color', previousColor, previousPriority);
     else root.style.removeProperty('--dan-cargo-site-color');
   }

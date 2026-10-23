@@ -11,16 +11,19 @@
       0 calc(var(--DOT_SIZE) / 2), transparent calc(var(--DOT_SIZE) / 2));
 }
 
-/* Extend Cargo's own site color to the root canvas used during rubber-banding.
-   No overscroll-behavior override, body fill replacement, or blend-mode changes. */
-html.dan-global-background {
-  background-color: var(--site-background-color, var(--dan-cargo-site-color));
+/* Only supplement an unpainted root. JS derives this color from Cargo's actual
+   computed body style; native root colors/images and body propagation win. */
+html.dan-global-background[data-dan-canvas-color="body"] {
+  background-color: var(--dan-cargo-site-color);
 }
-html.dan-global-background[data-dan-pattern="dots"] {
+/* Canvas fallback, not a fixed composited surface ending at viewport edges.
+   Normal page dots below remain viewport-fixed. Never replace a Cargo image. */
+html.dan-global-background[data-dan-canvas-pattern="dots"] {
   background-image: var(--dan-pattern-image);
   background-size: var(--DOT_SPACING) var(--DOT_SPACING);
   background-position: 0 0;
-  background-attachment: fixed;
+  background-repeat: repeat;
+  background-attachment: scroll;
 }
 
 .dan-site-pattern, .dan-surface-pattern {

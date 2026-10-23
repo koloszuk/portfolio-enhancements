@@ -325,34 +325,50 @@ and `--DOT_OPACITY: 1`. To replace the pattern later, change
 
 Cargo remains the background color editor: change Site Background in Cargo's
 Site Settings, or Page Background / Content Background in the relevant page's
-settings, and publish. External code supplies no solid color. Cargo's native
-`--site-background-color` is extended onto the HTML root canvas, with computed
-body color as the fallback, to reduce white/mismatched elastic overscroll paint.
-Per-page colors are not copied onto the root: the site color remains the canvas
-outside page boundaries.
+settings, and publish. External code supplies no solid color. When the HTML root
+is transparent and image-free, and the body has an opaque color and no image,
+that actual computed body color is mirrored to `--dan-cargo-site-color` for the
+canvas. This avoids a competing solid color or reliance on a stale site variable.
+Explicit native root colors/images are respected. Body images or translucent
+colors retain native body-to-root background propagation; our root additions
+stay off when they could disrupt it. Per-page colors are never copied to the
+root and remain intentional local overrides.
 
 `js/backgrounds/dot-grid.js` maintains one site-level, transparent, pointer-inert
 pattern before Cargo's positioned content tree. Page and content layers have
 native isolated stacking contexts; opaque backgrounds would cover the site
 pattern, so only those surfaces receive their own matching decoration behind
 content. Transparent surfaces share the underlying pattern; translucent colors
-keep tinting the pattern beneath them. All copies use viewport-aligned CSS tiles,
-never a scroll handler. Removed pages lose their decorations; new pages are
-found automatically. Pinned/fixed/overlay pages, including Header I0367072328
-and Footer S2531296503, are excluded. Cargo's backgrounds, wallpaper, noise,
-positioning, isolation and Difference blending are not rewritten. Existing
-opaque wallpaper imagery can cover the pattern intentionally.
+keep tinting the pattern beneath them. Normal dots remain viewport-fixed. The
+root canvas gets a repeating **scroll-attached** dot fallback only when native
+root/body images are absent and a safe opaque base exists. This avoids treating
+that fallback as another fixed image limited to a composited viewport rectangle.
+The root dot phase may differ during overscroll; base-color continuity takes
+priority over perfect pattern alignment. Cargo images are never replaced by the
+root fallback. Disabling the pattern retains safe canvas color matching.
 
-Root canvas paint and fixed-background compositing during macOS rubber-banding
-are browser-controlled. Local tests verify lifecycle, background selection,
-configuration and editor exclusion, not compositor output. Manually check Home,
-About and project pages at both scroll limits, including transparent pinned
-navigation. Dots may still clip or shift during compositor overscroll (and fixed
-background attachment varies on mobile); page-specific colors can differ from
-the site canvas. Native physics remain enabled. If the browser still produces
-unacceptable seams, the smallest optional fallback is root
-`overscroll-behavior-y: none`, trading away vertical rubber-banding. That fallback
-is **not enabled** and requires a separate design decision.
+Removed pages lose their decorations; new pages are found automatically. No
+scroll listeners, polling, new isolation or opaque overlay are added. Pinned/
+fixed/overlay pages, including Header I0367072328 and Footer S2531296503, are
+excluded. Cargo's backgrounds, wallpaper, noise, positioning and Difference
+blending are not rewritten. Existing opaque wallpaper can cover dots intentionally.
+Native root paint is sampled synchronously with our optional canvas attributes
+removed, without displaying an intermediate frame. Existing event-driven content,
+stylesheet, attribute and resize notifications keep values current.
+
+BUG-001: likely contributors were a fixed root image clipped by compositor
+overscroll and root/body canvas paint differences. The old unconditional root
+image rule could also interfere with native background-image propagation. These
+are repository findings and a mitigation, **not a browser-confirmed root cause
+or visual resolution**. Native macOS rubber-band scrolling must remain enabled;
+no repository-owned suppression rules were found and no suppression fallback is
+permitted. Root canvas rendering and fixed-layer Difference compositing remain
+browser-controlled. Local checks cover color/image guards, pattern attachment,
+lifecycle and editor exclusion, not compositor output. Manually test Home, About,
+project/future pages at both scroll limits, slow/strong rubber-banding, pinned
+Header/Footer inversion, dots and page-specific colors/images. Dots may still
+clip/shift, and intentional page colors may differ from the site canvas. These
+limitations must not be addressed by disabling elasticity or scroll simulation.
 
 Scroll reveals are temporarily disabled with `ENABLE_SCROLL_REVEAL = false` in
 `js/main.js` while Cargo handles thumbnail movement. Set it to
