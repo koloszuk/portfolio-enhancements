@@ -325,14 +325,21 @@ and `--DOT_OPACITY: 1`. To replace the pattern later, change
 
 Cargo remains the background color editor: change Site Background in Cargo's
 Site Settings, or Page Background / Content Background in the relevant page's
-settings, and publish. External code supplies no solid color. When the HTML root
-is transparent and image-free, and the body has an opaque color and no image,
-that actual computed body color is mirrored to `--dan-cargo-site-color` for the
-canvas. This avoids a competing solid color or reliance on a stale site variable.
-Explicit native root colors/images are respected. Body images or translucent
-colors retain native body-to-root background propagation; our root additions
-stay off when they could disrupt it. Per-page colors are never copied to the
-root and remain intentional local overrides.
+settings, and publish. External code supplies no solid color. An opaque native
+HTML background is left alone. Otherwise an opaque computed body color is
+mirrored to the canvas; if the body is transparent/translucent, Cargo's own
+`--site-background-color` is the fallback. Cargo's frontend publishes that
+variable for opaque site colors. The actual body color takes priority over a
+possibly stale site variable. No color is invented if both sources are absent
+or non-opaque. Per-page/background/content choices are not rewritten.
+
+Background images no longer veto the opaque root color. A grey-looking image or
+inner page does not prove an opaque CSS blend backdrop exists. Native image
+properties are untouched; making the root opaque intentionally stops depending
+on body-to-root background propagation, so body images can paint on body instead
+of propagating to the canvas. If native body wallpaper is configured, check its
+alignment manually. No Header/Footer isolation, transform or blending changes
+are bundled into this correction.
 
 `js/backgrounds/dot-grid.js` maintains one site-level, transparent, pointer-inert
 pattern before Cargo's positioned content tree. Page and content layers have
@@ -356,19 +363,29 @@ Native root paint is sampled synchronously with our optional canvas attributes
 removed, without displaying an intermediate frame. Existing event-driven content,
 stylesheet, attribute and resize notifications keep values current.
 
-BUG-001: likely contributors were a fixed root image clipped by compositor
-overscroll and root/body canvas paint differences. The old unconditional root
-image rule could also interfere with native background-image propagation. These
-are repository findings and a mitigation, **not a browser-confirmed root cause
-or visual resolution**. Native macOS rubber-band scrolling must remain enabled;
-no repository-owned suppression rules were found and no suppression fallback is
-permitted. Root canvas rendering and fixed-layer Difference compositing remain
-browser-controlled. Local checks cover color/image guards, pattern attachment,
-lifecycle and editor exclusion, not compositor output. Manually test Home, About,
-project/future pages at both scroll limits, slow/strong rubber-banding, pinned
-Header/Footer inversion, dots and page-specific colors/images. Dots may still
-clip/shift, and intentional page colors may differ from the site canvas. These
-limitations must not be addressed by disabling elasticity or scroll simulation.
+BUG-001 remains pending manual visual confirmation. Commit 27f01c4 did not
+guarantee an opaque root: mirroring required an opaque body, fully transparent
+root and no images on either element. The current correction removes the image
+veto for **color only**, supports Cargo's opaque site-color fallback, and backs
+a non-opaque root with that known Cargo color. The dot rendering is unchanged.
+The observed grey-page/white-navigation overscroll can also be a compositor or
+Cargo blend-group issue. Source inspection cannot establish which branch was
+active on the published page. No speculative isolation/GPU/transform patches
+are applied to Cargo's fixed, isolated Difference-blended pages.
+
+For an optional manual check, `window.danPortfolio.background.canvas` reports
+native root/body colors, Cargo site color, background images, chosen source,
+current computed root color and `rootOpaque`. This getter measures on demand;
+there is no polling. If `rootOpaque` is true while navigation still turns white,
+root opacity alone is insufficient and browser compositor investigation is
+needed. Computed opacity is not proof of a usable GPU blend backdrop.
+
+Native macOS rubber-band scrolling stays enabled. Tests cover source selection,
+opaque/native guards, images, lifecycle and editor exclusion, not compositing.
+Manually test Home, About and project/future pages at both scroll limits, pinned
+Header/Footer inversion, normal appearance and any wallpapers. Dots may still
+clip/shift and intentional page colors may differ from the site canvas. Do not
+address these limitations by suppressing elasticity or simulating scrolling.
 
 Scroll reveals are temporarily disabled with `ENABLE_SCROLL_REVEAL = false` in
 `js/main.js` while Cargo handles thumbnail movement. Set it to

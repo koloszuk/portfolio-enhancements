@@ -11,9 +11,9 @@
       0 calc(var(--DOT_SIZE) / 2), transparent calc(var(--DOT_SIZE) / 2));
 }
 
-/* Only supplement an unpainted root. JS derives this color from Cargo's actual
-   computed body style; native root colors/images and body propagation win. */
-html.dan-global-background[data-dan-canvas-color="body"] {
+/* Opaque base for blending, sourced from Cargo's computed body/site color.
+   Existing opaque root paint wins. Images are not substitutes for opacity. */
+html.dan-global-background[data-dan-canvas-color] {
   background-color: var(--dan-cargo-site-color);
 }
 /* Canvas fallback, not a fixed composited surface ending at viewport edges.

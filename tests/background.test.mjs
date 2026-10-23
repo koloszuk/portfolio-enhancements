@@ -24,7 +24,7 @@ function fixture({editor=false}={}) {
   const document=Object.assign(new EventTarget(),{documentElement:root,body,querySelector:()=>null,
     querySelectorAll:()=>pages,createElement:()=>node()});
   const context={window,document,location:{pathname:editor?'/edit/home':'/'},
-    getComputedStyle:n=>({backgroundColor:n.color,backgroundImage:n.image,getPropertyValue:k=>k==='--ENABLE_BACKGROUND_PATTERN'?enabled:k==='--PATTERN_TYPE'?'dots':''}),
+    getComputedStyle:n=>({backgroundColor:n===root&&root.getAttribute('data-dan-canvas-color')?root.style.getPropertyValue('--dan-cargo-site-color'):n.color,backgroundImage:n.image,getPropertyValue:k=>k==='--ENABLE_BACKGROUND_PATTERN'?enabled:k==='--PATTERN_TYPE'?'dots':k==='--site-background-color'?(root.siteColor||''):''}),
     MutationObserver:class{constructor(cb){this.cb=cb;observers.push(this);}observe(){}disconnect(){}},
     requestAnimationFrame:cb=>{frames.set(++next,cb);return next;},cancelAnimationFrame:id=>frames.delete(id),
   };
@@ -76,7 +76,7 @@ test('unpainted root uses actual Cargo body color, including updates and pattern
   assert.equal(f.root.getAttribute('data-dan-canvas-color'),'body');
   assert.equal(f.root.getAttribute('data-dan-canvas-pattern'),null);
 });
-test('Cargo native root colors and images are never replaced',()=>{
+test('opaque Cargo root colors and native image properties are never replaced',()=>{
   const f=fixture();f.root.color='rgb(20, 30, 40)';f.flush();
   assert.equal(f.root.getAttribute('data-dan-canvas-color'),null);
   assert.equal(f.root.getAttribute('data-dan-canvas-pattern'),'dots');
@@ -86,15 +86,16 @@ test('Cargo native root colors and images are never replaced',()=>{
   assert.equal(f.root.image,'linear-gradient(red, blue)');
   assert.equal(f.root.style.getPropertyValue('background-image'),'');
 });
-test('body images/translucency retain native propagation; explicit translucent root is respected',()=>{
+test('images do not veto an opaque blend base; unavailable opaque colors are not invented',()=>{
   const f=fixture();f.body.image='url("cargo-wallpaper.jpg")';f.flush();
-  assert.equal(f.root.getAttribute('data-dan-canvas-color'),null);
+  assert.equal(f.root.getAttribute('data-dan-canvas-color'),'body');
   assert.equal(f.root.getAttribute('data-dan-canvas-pattern'),null);
   f.body.image='none';f.body.color='rgba(30, 40, 50, 0.5)';f.rescan();
   assert.equal(f.root.getAttribute('data-dan-canvas-color'),null);
   assert.equal(f.root.getAttribute('data-dan-canvas-pattern'),null);
   f.body.color='rgb(30, 40, 50)';f.root.color='rgba(10, 20, 30, 0.2)';f.rescan();
-  assert.equal(f.root.getAttribute('data-dan-canvas-color'),null);
+  assert.equal(f.root.getAttribute('data-dan-canvas-color'),'body');
+  assert.equal(f.instance.canvas.rootOpaque,true);
   f.root.color='color(srgb 0 0 0 / 0)';f.rescan();
   assert.equal(f.root.getAttribute('data-dan-canvas-color'),'body');
   f.instance.destroy();
@@ -110,4 +111,27 @@ test('canvas dots are scroll-painted, normal dots stay fixed, and CSS never supp
   assert.doesNotMatch(css,/overscroll-behavior[^:]*:\s*(?:none|contain)/);
   assert.doesNotMatch(css,/background-color:\s*#/);
   assert.doesNotMatch(source,/setInterval|addEventListener\('(?:scroll|wheel|touchmove)'/);
+});
+test('transparent body can use Cargo opaque site color even with native background images',()=>{
+  const f=fixture();f.body.color='rgba(0, 0, 0, 0)';f.root.siteColor='rgb(230, 230, 230)';
+  f.root.image='url("native-root.jpg")';f.flush();
+  assert.equal(f.root.getAttribute('data-dan-canvas-color'),'site');
+  assert.equal(f.instance.canvas.source,'site');assert.equal(f.instance.canvas.rootOpaque,true);
+  assert.equal(f.root.getAttribute('data-dan-canvas-pattern'),null);
+  assert.equal(f.root.image,'url("native-root.jpg")');
+  f.root.siteColor='rgb(100, 110, 120)';f.rescan();
+  assert.equal(f.instance.canvas.rootColor,'rgb(100, 110, 120)');
+});
+test('actual opaque body color wins over stale site metadata; opaque native root needs no rule',()=>{
+  const f=fixture();f.root.siteColor='rgb(1, 2, 3)';f.flush();
+  assert.equal(f.instance.canvas.source,'body');assert.equal(f.instance.canvas.rootColor,f.body.color);
+  f.root.color='rgb(50, 60, 70)';f.rescan();
+  assert.equal(f.root.getAttribute('data-dan-canvas-color'),null);
+  assert.equal(f.instance.canvas.source,'native-root');assert.equal(f.instance.canvas.rootColor,f.root.color);
+});
+test('no opaque Cargo source leaves root alone and diagnoses uncertainty, not a fabricated color',()=>{
+  const f=fixture();f.body.color='transparent';f.root.siteColor='#ffffff80';f.flush();
+  assert.equal(f.root.getAttribute('data-dan-canvas-color'),null);
+  assert.equal(f.instance.canvas.source,'unavailable');assert.equal(f.instance.canvas.rootOpaque,false);
+  assert.equal(f.context.opaque('#fff8'),false);assert.equal(f.context.opaque('#ffff'),true);
 });

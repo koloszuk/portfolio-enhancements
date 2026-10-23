@@ -10,6 +10,8 @@ function isEditor() {
 // surfaces show the shared site pattern; translucent surfaces keep Cargo's tint.
 export function isOpaqueBackground(color) {
   if (!color || color === 'transparent') return false;
+  if (/^#[\da-f]{4}$/i.test(color)) return color.slice(-1).toLowerCase() === 'f';
+  if (/^#[\da-f]{8}$/i.test(color)) return color.slice(-2).toLowerCase() === 'ff';
   const alpha = color.match(/\/\s*([\d.]+)(%)?\s*\)$/);
   if (alpha) return Number(alpha[1]) >= (alpha[2] ? 100 : 1);
   const rgba = color.match(/^rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)$/);
@@ -20,6 +22,7 @@ export function mountGlobalBackground() {
   const root = document.documentElement;
   const layers = new Map();
   let frame = 0, stopped = false;
+  let canvasState = null;
   const previousColor = root.style.getPropertyValue('--dan-cargo-site-color');
   const previousPriority = root.style.getPropertyPriority('--dan-cargo-site-color');
   function scan() {
@@ -35,26 +38,31 @@ export function mountGlobalBackground() {
     const nativeRoot = getComputedStyle(root);
     const rootColor = nativeRoot.backgroundColor;
     const rootImage = nativeRoot.backgroundImage;
+    const siteColor = nativeRoot.getPropertyValue('--site-background-color').trim();
     const bodyStyle = getComputedStyle(document.body);
     const color = bodyStyle.backgroundColor;
     const bodyImage = bodyStyle.backgroundImage;
     const noImages = rootImage === 'none' && bodyImage === 'none';
     const rootOpaque = isOpaqueBackground(rootColor);
-    // An explicit root paint belongs to Cargo. Body images/translucency may
-    // propagate to the canvas, so leave that native propagation intact as well.
-    const rootTransparent = rootColor === 'transparent' || /(?:,|\/)\s*0(?:\.0+)?%?\s*\)$/.test(rootColor);
-    const mirrorBody = !rootOpaque && rootTransparent && isOpaqueBackground(color) && noImages;
+    // Background images do not guarantee an opaque blend backdrop. Mirror only
+    // a known opaque Cargo color, even with images; retain an opaque native root.
+    const source = isOpaqueBackground(color) ? 'body' : isOpaqueBackground(siteColor) ? 'site' : null;
+    const canvasColor = source === 'body' ? color : source === 'site' ? siteColor : '';
+    const mirrorCanvas = !rootOpaque && !!source;
     if (!root.classList.contains('dan-global-background')) root.classList.add('dan-global-background');
-    if (root.style.getPropertyValue('--dan-cargo-site-color') !== color) {
-      root.style.setProperty('--dan-cargo-site-color', color);
+    if (root.style.getPropertyValue('--dan-cargo-site-color') !== canvasColor) {
+      if (canvasColor) root.style.setProperty('--dan-cargo-site-color', canvasColor);
+      else root.style.removeProperty('--dan-cargo-site-color');
     }
     const settings = getComputedStyle(root);
     const enabled = ['1', 'true'].includes(settings.getPropertyValue('--ENABLE_BACKGROUND_PATTERN').trim());
     const type = settings.getPropertyValue('--PATTERN_TYPE').trim();
     const pattern = enabled && type === 'dots' ? 'dots' : 'none';
     if (root.getAttribute('data-dan-pattern') !== pattern) root.setAttribute('data-dan-pattern', pattern);
-    if (mirrorBody) root.setAttribute('data-dan-canvas-color', 'body');
-    if (pattern === 'dots' && noImages && (rootOpaque || mirrorBody)) root.setAttribute('data-dan-canvas-pattern', 'dots');
+    if (mirrorCanvas) root.setAttribute('data-dan-canvas-color', source);
+    if (pattern === 'dots' && noImages && (rootOpaque || mirrorCanvas)) root.setAttribute('data-dan-canvas-pattern', 'dots');
+    canvasState = { nativeRootColor: rootColor, bodyColor: color, siteColor,
+      rootImage, bodyImage, source: rootOpaque ? 'native-root' : source || 'unavailable' };
     const surfaces = new Set(pattern === 'dots' ? [document.body] : []);
     const watched = [root, document.body];
     for (const page of document.querySelectorAll('.page')) {
@@ -109,5 +117,12 @@ export function mountGlobalBackground() {
     if (previousColor) root.style.setProperty('--dan-cargo-site-color', previousColor, previousPriority);
     else root.style.removeProperty('--dan-cargo-site-color');
   }
-  return { destroy };
+  return {
+    destroy,
+    // On-demand diagnostics only: computed opacity does not prove compositor behavior.
+    get canvas() {
+      const rootColor = getComputedStyle(root).backgroundColor;
+      return { ...canvasState, rootColor, rootOpaque: isOpaqueBackground(rootColor) };
+    },
+  };
 }
