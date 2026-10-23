@@ -516,16 +516,17 @@ Header/Footer stacking and fast-scroll appearance still need manual visual check
 `js/interactions/overscroll-blend.js` provides a focused mitigation. Configure it
 in `js/config.js`: `ENABLE_OVERSCROLL_BLEND_WORKAROUND = true`,
 `OVERSCROLL_BOUNDARY_TOLERANCE = 2` pixels (entry),
-`OVERSCROLL_EXIT_DISTANCE = 20` pixels (exit), `OVERSCROLL_SETTLE_DELAY = 350`
-milliseconds, and `OVERSCROLL_FALLBACK_COLOR = '#111111'`. The fixed backplane
+`OVERSCROLL_EXIT_DISTANCE = 40` pixels (exit), `OVERSCROLL_SETTLE_DELAY = 650`
+milliseconds, `OVERSCROLL_MIN_ACTIVE_DURATION = 400` milliseconds, and `OVERSCROLL_FALLBACK_COLOR = '#111111'`. The fixed backplane
 experiment remains off; its code and the dot grid are unchanged.
 
 Passive wheel/trackpad input enters the state only when its vertical delta points
 outward within 2px of the document's actual top/bottom limit. Resting at an edge
 and scroll events alone never activate it. Once active, tiny inward deltas and
 recoil near that edge do not remove/re-add the state. It exits once actual scroll
-position is at least 20px inside the document, or after 350ms without qualifying
-boundary activity. Observable bounce/scroll events extend the timer. Single-finger
+position is at least 40px inside the document and the 400ms minimum hold has
+passed, or after 650ms without qualifying boundary activity (also respecting the
+minimum hold). Observable bounce/scroll events extend the quiet deadline. Single-finger
 touch follows the same rules; pinch and horizontal/zoom wheel are ignored. Nested
 scrollable panels consuming input are excluded. Iframe events do not propagate
 to this document, preserving About Selfie. No event is cancelled, scroll position
@@ -575,10 +576,25 @@ Cargo color/opacity/filter transitions are a plausible additional contributor,
 not proven from source inspection. The module does not duplicate navigation.
 
 This measures **overscroll intent**, not the compositor's elastic progress.
-Chrome can clamp scrollY and emit no bounce updates. A 350ms quiet delay is a
+Chrome can clamp scrollY and emit no bounce updates. A 650ms quiet delay is a
 configurable heuristic; non-elastic browsers can also briefly enter the fallback.
 CSS transition suppression cannot guarantee eliminating a one-frame compositor
 flash when mix-blend-mode changes. Manually inspect both bounce directions,
 black/dark paint consistency, SVG icons, native Header shrink, normal Difference
 over images and ordinary hover/navigation on Home/About/projects. BUG-001 and the
 blink are not considered visually resolved until the user confirms live results.
+
+The fast-trackpad refinement uses one restoration timeout with monotonic
+`performance.now()` deadlines: `max(activeSince + 400ms, lastBoundaryActivity +
+650ms)` near an edge. A genuine 40px retreat substitutes the current time for the
+quiet deadline, restoring immediately if the minimum hold already elapsed, or
+at the 400ms mark otherwise. Repeated retreat events do not restart that hold.
+Small inward deltas do not toggle state. Every reschedule/reset invalidates a
+version token, so an already queued old callback cannot restore during newer
+activity. The callback rechecks current position before restoring; returning to
+the edge reschedules the same timer rather than racing a separate exit timer.
+Navigation/focus/disable cleanup bypasses the minimum hold. Atomic paint switching
+and the existing two-frame transition-guard release are unchanged. Tests include
+very fast alternating input, exactly one pending timer and one class activation,
+stale callbacks, early retreat, return to boundary and navigation before expiry.
+The remaining visual blink still requires user confirmation on the deployed site.

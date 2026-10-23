@@ -1,6 +1,6 @@
 import {
   ENABLE_OVERSCROLL_BLEND_WORKAROUND, OVERSCROLL_BOUNDARY_TOLERANCE,
-  OVERSCROLL_EXIT_DISTANCE, OVERSCROLL_SETTLE_DELAY, OVERSCROLL_FALLBACK_COLOR,
+  OVERSCROLL_EXIT_DISTANCE, OVERSCROLL_SETTLE_DELAY, OVERSCROLL_MIN_ACTIVE_DURATION, OVERSCROLL_FALLBACK_COLOR,
 } from '../config.js';
 
 export function overscrollEdge(delta, y, max, tolerance = OVERSCROLL_BOUNDARY_TOLERANCE) {
@@ -39,6 +39,7 @@ export function mountOverscrollBlendWorkaround() {
   const previousColor = root.style.getPropertyValue(colorProperty);
   const previousPriority = root.style.getPropertyPriority(colorProperty);
   let edge = null, timer = 0, touchY = null, enabled = true, releaseFrame = 0;
+  let activeSince = 0, lastBoundaryActivity = 0, restorationVersion = 0;
   const guarded = new Map();
   const events = new AbortController();
   const passive = { passive: true, capture: true, signal: events.signal };
@@ -63,6 +64,7 @@ export function mountOverscrollBlendWorkaround() {
     if (!root.classList.contains('dan-overscroll-transition-guard')) root.classList.add('dan-overscroll-transition-guard');
   }
   function reset(immediate = false) {
+    restorationVersion++;
     clearTimeout(timer); timer = 0; edge = null;
     root.classList.remove('dan-overscroll-blend');
     if (previousColor) root.style.setProperty(colorProperty, previousColor, previousPriority);
@@ -75,9 +77,25 @@ export function mountOverscrollBlendWorkaround() {
       releaseFrame = requestAnimationFrame(releaseTransitions);
     });
   }
-  function settle() { clearTimeout(timer); timer = setTimeout(() => reset(), OVERSCROLL_SETTLE_DELAY); }
   const away = () => edge === 'top' ? window.scrollY >= OVERSCROLL_EXIT_DISTANCE
     : window.scrollY <= maximum() - OVERSCROLL_EXIT_DISTANCE;
+  function settle(boundaryActivity = true) {
+    clearTimeout(timer); timer = 0;
+    const version = ++restorationVersion;
+    if (!edge) return;
+    const now = performance.now();
+    if (boundaryActivity) lastBoundaryActivity = now;
+    // One deadline/timer: a genuine retreat skips the quiet wait, but never the
+    // minimum hold. Recheck position at expiry in case the document recoiled.
+    const deadline = Math.max(activeSince + OVERSCROLL_MIN_ACTIVE_DURATION,
+      away() ? now : lastBoundaryActivity + OVERSCROLL_SETTLE_DELAY);
+    if (now >= deadline) { reset(); return; }
+    timer = setTimeout(() => {
+      if (version !== restorationVersion || !edge) return;
+      timer = 0;
+      settle(false);
+    }, deadline - now);
+  }
   function nestedScrollConsumes(event, delta) {
     // Ignore scrollable controls and contained panels. Iframe events do not
     // bubble into this document, so About Selfie retains its own interaction.
@@ -97,14 +115,14 @@ export function mountOverscrollBlendWorkaround() {
     if (!delta) return;
     if (nestedScrollConsumes(event, delta)) return;
     if (edge) {
-      if (away()) reset();
-      else settle(); // Inward recoil near the same edge is not a new gesture.
+      settle(!away()); // Small direction changes never toggle an active state.
       return;
     }
     const next = overscrollEdge(delta, window.scrollY, maximum());
     if (!next) return;
     guardTransitions();
     edge = next;
+    activeSince = performance.now();
     root.style.setProperty(colorProperty, OVERSCROLL_FALLBACK_COLOR);
     if (!root.classList.contains('dan-overscroll-blend')) root.classList.add('dan-overscroll-blend');
     settle();
@@ -122,13 +140,12 @@ export function mountOverscrollBlendWorkaround() {
     if (touchY !== null) intent(touchY - y, event);
     touchY = y;
   }, passive);
-  const touchEnd = () => { touchY = null; if (edge) settle(); };
+  const touchEnd = () => { touchY = null; if (edge) settle(!away()); };
   window.addEventListener('touchend', touchEnd, passive);
   window.addEventListener('touchcancel', () => { touchY = null; reset(true); }, passive);
   window.addEventListener('scroll', () => {
     if (!edge) return; // Reaching/resting at a boundary never activates the state.
-    if (away()) reset();
-    else settle(); // Extend for observable bounce/scroll activity, never move the page.
+    settle(!away()); // Extend for observable boundary activity, never move the page.
   }, passive);
   for (const name of ['blur', 'pagehide', 'pageshow', 'hashchange', 'popstate', 'resize']) {
     window.addEventListener(name, () => { touchY = null; reset(true); }, passive);
